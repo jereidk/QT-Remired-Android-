@@ -124,6 +124,109 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 	else if (eventName == 'SetCameraBop') setCameraBop(value1, value2);
 }
 
+// --- Blissful Erect ending cutscene, ported from blissful-erect.hxc's
+// onSongEnd(). Camera choreography + sound cues + the dedicated dad/bf poses
+// are kept; the subtitle track and the press-key-to-skip prompt are dropped
+// since Psych has no built-in subtitle system (see PORT_INFO.md). Dad's
+// "erectEnding" pose and bf's "shoulderSwish" both live in the qt-erect /
+// bf-qt-erect Animate atlases as frame labels (no symbol dictionary entry),
+// so they're registered with addByFrameLabel the same way qtStagePico's
+// "cars" prop is.
+var hasPlayedOutro:Bool = false;
+var outroMusic:Dynamic;
+
+function onEndSong():Dynamic
+{
+	if (hasPlayedOutro) return null;
+	hasPlayedOutro = true;
+	playEndingCutscene();
+	return Function_Stop;
+}
+
+function playEndingCutscene()
+{
+	game.inCutscene = true;
+	game.isCameraOnForcedPos = true;
+	if (cameraFollowTween != null) cameraFollowTween.cancel();
+	if (cameraZoomTween != null) cameraZoomTween.cancel();
+
+	FlxTween.tween(game.camHUD, {alpha: 0}, 1.2, {
+		ease: FlxEase.quadOut,
+		onComplete: function(_) game.camHUD.visible = false
+	});
+
+	// Dad needs to be the qt-erect character for its "erectEnding" pose -
+	// same swap technique the caramelldansen window already uses.
+	game.triggerEvent('Change Character', 'dad', 'qt-erect', 0);
+	if (game.dad.atlas != null) game.dad.atlas.anim.addByFrameLabel('erectEnding', 'qt erect ending', 24, false);
+	if (game.boyfriend.atlas != null) game.boyfriend.atlas.anim.addByFrameLabel('shoulderSwish', 'shoulder swish', 24, false);
+
+	FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/qt_erect_ending'));
+	outroMusic = FlxG.sound.play(Paths.music('gameplay/introSong/outroSong-erect'), 0.2);
+
+	tweenCamPos(510, 923, 2.7, FlxEase.quartInOut);
+	tweenCamZoomAbs(1.20, 2.7, FlxEase.quartInOut);
+
+	new FlxTimer().start(0.458, function(_) game.dad.playAnim('erectEnding', true));
+
+	new FlxTimer().start(2.35, function(_)
+	{
+		tweenCamPos(538, 923, 2, FlxEase.expoOut);
+		tweenCamZoomAbs(1.08, 2, FlxEase.expoOut);
+	});
+
+	new FlxTimer().start(4.65, function(_)
+	{
+		tweenCamPos(538, 923, 0.8, FlxEase.quartIn);
+		tweenCamZoomAbs(1.16, 0.8, FlxEase.quartIn);
+	});
+
+	new FlxTimer().start(4.95, function(_)
+	{
+		tweenCamPos(538, 923, 2.2, FlxEase.expoOut);
+		tweenCamZoomAbs(1.12, 2.2, FlxEase.expoOut);
+	});
+
+	new FlxTimer().start(5.75, function(_)
+	{
+		tweenCamPos(538, 923, 1.4, FlxEase.expoOut);
+		tweenCamZoomAbs(1.0, 1.4, FlxEase.expoOut);
+	});
+
+	new FlxTimer().start(6.4, function(_)
+	{
+		tweenCamPos(1040, 931, 2.1, FlxEase.quartInOut);
+		tweenCamZoomAbs(1.0, 2.1, FlxEase.quartInOut);
+	});
+
+	new FlxTimer().start(7.942, function(_) FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/bf_erect_shoulder_swish')));
+
+	new FlxTimer().start(7.958, function(_) game.boyfriend.playAnim('shoulderSwish', true));
+
+	new FlxTimer().start(8.4, function(_) tweenCamPos(1040, 320, 2.9, FlxEase.quartIn));
+
+	new FlxTimer().start(9.3, function(_) FlxG.camera.fade(0xFF000000, 2.0, false, null, true));
+
+	new FlxTimer().start(14, function(_)
+	{
+		game.inCutscene = false;
+		if (outroMusic != null) outroMusic.stop();
+		game.endSong();
+	});
+}
+
+function tweenCamPos(x:Float, y:Float, duration:Float, ease:Float->Float)
+{
+	if (cameraFollowTween != null) cameraFollowTween.cancel();
+	cameraFollowTween = FlxTween.tween(game.camFollow, {x: x, y: y}, duration, {ease: ease});
+}
+
+function tweenCamZoomAbs(mult:Float, duration:Float, ease:Float->Float)
+{
+	if (cameraZoomTween != null) cameraZoomTween.cancel();
+	cameraZoomTween = FlxTween.tween(FlxG.camera, {zoom: game.defaultCamZoom * mult}, duration, {ease: ease});
+}
+
 // --- Camera focus/zoom events, ported with real tweening (Psych's native
 // "Camera Follow Pos"/"Add Camera Zoom" only snap instantly) - see
 // PORT_INFO.md for the FocusCamera/ZoomCamera event format. ---

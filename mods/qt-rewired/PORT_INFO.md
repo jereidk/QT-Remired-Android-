@@ -21,7 +21,8 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   ese atlas base en el paquete del mod.
 - `stages/{qtStage,qtStageKiller,qtStageCityErect,qtStageObliteratedErect,
   qtStagePico,qtStage2021}.json`+`.hx` (HScript) — anchors de personajes,
-  zoom y fondos de cada stage, sin cutscene de intro.
+  zoom y fondos de cada stage. `qtStage` y `qtStageCityErect` sí tienen
+  cutscene de fin de canción (ver más abajo); el resto todavía no.
 - `data/{blissful,obliterated,blissful-erect,obliterated-erect,
   obliterated-legacy,blissful-pico,blissful-2021}/*.json` — charts convertidos
   del formato plano `{t,d,l,p,k}` del mod original al formato de secciones de
@@ -93,6 +94,23 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   fundido a negro + spotlight + el sonido `qtsfx` antes de continuar
   normalmente vía `game.endSong()`. Ver limitación 3 sobre el alcance
   reducido frente al original.
+- **Cutscene final de Blissful-erect, portada casi completa** (a diferencia
+  de la de Blissful base, esta SÍ es fiel — `blissful-erect.hxc` tiene su
+  propia `onSongEnd` totalmente distinta, con coreografía de cámara real).
+  En `qtStageCityErect.hx`: intercepción de `onEndSong`/`Function_Stop` con
+  guarda `hasPlayedOutro`, fade del HUD, la voz `qt_erect_ending` + música de
+  fondo `outroSong-erect` a volumen 0.2, 12 pasos de cámara con
+  `game.camFollow`/`FlxG.camera.zoom` tweenados (posiciones y curvas de easing
+  exactas del original) vía `FlxTimer`, el intercambio de personaje `dad`
+  a `qt-erect` (reusando el mismo mecanismo del note kind `caramella`) para
+  reproducir su pose `erectEnding`, la pose `shoulderSwish` de BF, el sonido
+  `bf_erect_shoulder_swish`, y un fundido a negro final antes de llamar de
+  nuevo a `game.endSong()`. Tanto `erectEnding` (atlas `qt-erect`) como
+  `shoulderSwish` (atlas `bf-qt-erect`) son animaciones por **etiqueta de
+  frame** en el timeline raíz (no símbolos de diccionario), registradas en
+  runtime con `addByFrameLabel` — mismo mecanismo que el prop `cars`. Se
+  omiten los subtítulos (`showoff.srt`, Psych no tiene sistema nativo de
+  subtítulos) y el prompt de "presiona para saltar" (ver limitación 8).
 - **Corregido un bug latente de BOM UTF-8** en varios `spritemap1.json` (QT,
   sierra, GF-QT, BF-QT, BF-QT-erect) que venían con marca de orden de bytes
   del exportador de Adobe Animate — potencialmente rompía el parseo JSON de
@@ -147,6 +165,19 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    (`cameraBopMultiplier` con `Math.pow(decayRate, dt)`); la versión portada
    usa un tween de ida y vuelta de duración fija por golpe. Visualmente muy
    similar, pero no es la misma curva de decaimiento.
+8. **Cutscene final de Blissful-erect sin subtítulos ni skip.** Se portó toda
+   la coreografía de cámara/sonido/animación (ver "Estado actual"), pero se
+   omitió el archivo de subtítulos `subtitles/english/cutsceneErect/showoff.srt`
+   (Psych no tiene un sistema de subtítulos nativo) y el mecanismo de
+   "mantén presionado para saltar" (`skipCutscene()` del original) — la
+   cutscene siempre se reproduce completa, ~14s. Solo se copió el audio en
+   inglés (el original también trae una variante en español para
+   `qt_erect_ending`, no incluida).
+9. **Blissful-pico y Blissful-2021 no tienen cutscene final propia portada
+   aún.** Blissful-pico sí tiene una en el original (referencia a un sonido
+   `picoWave`, sin investigar en detalle); Blissful-2021 y Obliterated (base)
+   confirmado que NO tienen ninguna cutscene de fin de canción en el script
+   original (`hasPlayedOutro`/`onSongEnd` no aparecen en sus `.hx`/`.hxc`).
 
 ## Assets de origen
 
@@ -158,17 +189,21 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
 
 ## Próximos pasos sugeridos (en orden)
 
-1. Blissful-pico y Blissful-2021 aún no tienen la cutscene de intro simplificada
-   ni la animación dedicada de QT (solo se hizo para Blissful/Blissful-erect
-   respectivamente) — extender el mismo patrón si se quiere consistencia.
-2. Cutscene de intro completa (sprite de QT transformándose + bus), en vez de
-   la versión simplificada (fade + spotlight + sfx) que hay ahora.
+1. Investigar y portar la cutscene final de Blissful-pico (referencia a un
+   sonido `picoWave` encontrada, no investigada en detalle todavía).
+2. Cutscene de intro completa de Blissful base (sprite de QT transformándose
+   + bus), en vez de la versión simplificada (fade + spotlight + sfx) que hay
+   ahora — Blissful-erect ya tiene su cutscene final casi fiel (ver "Estado
+   actual" y limitación 8).
 3. Portrait de Story Menu específico para QT/KB/Pico (en vez de caer al
    genérico de BF).
 4. `blackIn`/`cutsceneVideo`/`fadeStart` (eventos de Obliterated/legacy aún
    sin portar, relacionados con la cutscene completa del punto 2).
 5. Curva de decaimiento exacta para `SetCameraBop` (actualmente es un tween
    de ida y vuelta de duración fija, no la exponencial continua del original).
+6. Subtítulos y mecanismo de skip para la cutscene final de Blissful-erect
+   (ver limitación 8) — requeriría un sistema de subtítulos propio en HScript
+   ya que Psych no trae uno nativo.
 
 ## Notas de implementación por variante
 
