@@ -1,0 +1,46 @@
+{
+	"image": "characters/gf-qt",
+	"scale": 1,
+	"sing_duration": 4,
+	"healthicon": "face",
+	"position": [0, 0],
+	"camera_position": [0, 0],
+	"flip_x": false,
+	"no_antialiasing": false,
+	"healthbar_colors": [255, 105, 180],
+	"vocals_file": "",
+	"animations": [
+		{
+			"anim": "danceRight",
+			"name": "export/gf idle",
+			"fps": 24,
+			"loop": false,
+			"indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "danceLeft",
+			"name": "export/gf idle",
+			"fps": 24,
+			"loop": false,
+			"indices": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "cheer",
+			"name": "export/gf cheer",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "sad",
+			"name": "export/gf sad",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		}
+	]
+}

@@ -1,0 +1,78 @@
+{
+	"image": "characters/QT_assets/qt",
+	"scale": 1,
+	"sing_duration": 6,
+	"healthicon": "qt",
+	"position": [0, 0],
+	"camera_position": [0, 0],
+	"flip_x": false,
+	"no_antialiasing": false,
+	"healthbar_colors": [255, 105, 180],
+	"vocals_file": "qt",
+	"animations": [
+		{
+			"anim": "idle",
+			"name": "export/qt idle",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "danceRight",
+			"name": "export/qt dance",
+			"fps": 24,
+			"loop": false,
+			"indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "danceLeft",
+			"name": "export/qt dance",
+			"fps": 24,
+			"loop": false,
+			"indices": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singLEFT",
+			"name": "export/qt left",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singDOWN",
+			"name": "export/qt down",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singUP",
+			"name": "export/qt up",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singRIGHT",
+			"name": "export/qt rightt",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [20, 0]
+		},
+		{
+			"anim": "hey",
+			"name": "export/qt hey",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		}
+	]
+}

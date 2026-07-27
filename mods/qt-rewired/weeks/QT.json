@@ -1,0 +1,16 @@
+{
+	"songs": [
+		["Blissful", "qt", [255, 105, 180]]
+	],
+	"weekCharacters": ["qt", "bf-qt", "gf-qt"],
+	"weekBackground": "",
+	"storyName": "Your Favorite Robot",
+	"weekBefore": "",
+	"weekName": "QT",
+	"startUnlocked": true,
+	"hideStoryMode": false,
+	"hideFreeplay": false,
+	"freeplayColor": [255, 105, 180],
+	"hiddenUntilUnlocked": false,
+	"difficulties": "easy,normal,hard"
+}
