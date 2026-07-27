@@ -9,64 +9,96 @@ fue reconstruido usando las convenciones reales de mods de Psych (ver
 `source/backend/Mods.hx`), verificadas también contra el código fuente real de
 `FunkinCrew/Funkin'` (clonado aparte) para confirmar semánticas de eventos/charts.
 
-## Estado actual: "Blissful" y "Obliterated" jugables
+## Estado actual: 4 canciones jugables (Blissful/Obliterated, base + erect)
 
 Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
-- `characters/{qt,bf-qt,gf-qt,kb}.json` — personajes reconstruidos al schema
-  `CharacterFile` de Psych, usando los atlas Adobe Animate reales del mod vía
-  el soporte nativo `flxanimate` de Psych.
-- `stages/qtStage.json`+`.hx` y `stages/qtStageKiller.json`+`.hx` (HScript) —
-  anchors de personajes, zoom y fondos del stage, sin la cutscene de intro.
-- `data/blissful/*.json` — chart convertido del formato plano `{t,d,l,p}` del
-  mod original al formato de secciones de Psych (notas 0-3/4-7 se mapean 1:1
-  al mismo mecanismo mustHitSection de Psych).
-- `data/obliterated/*.json` — igual, pero con **BPM variable**: se reconstruyó
-  el mapeo tiempo↔beat a partir de los `timeChanges` del mod (redondeando cada
-  quiebre de tempo al múltiplo de 4 beats más cercano, ya que Psych solo admite
-  cambios de BPM en límites de sección) para poder ubicar cada nota en la
-  sección correcta pese a los ~20 cambios de tempo de la sección "Killer".
-- **Mecánica de esquivar sierras** (`stages/qtStageKiller.hx`): el evento de
-  chart custom `sawKB` dispara una secuencia de 2 beats (alerta → sierra
-  gira → ataque), usando los atlas reales `saw_mechanic/warning` y
-  `saw_mechanic/saw_assets`. Esquivar = tecla **Accept** (Enter/Space según
-  bindeo) en la ventana de 1 beat antes del ataque; cura 0.2 de vida si se
-  esquiva a tiempo, quita 1.0 de vida (mitad de la barra) si no.
-- `songs/{blissful,obliterated}/*.ogg` — audio con voces separadas por
-  personaje (usa `vocals_file` de Psych).
-- `weeks/QT.json` — ambas canciones aparecen en Freeplay y Story Mode.
+- `characters/{qt,bf-qt,gf-qt,kb,bf-qt-erect}.json` — personajes reconstruidos
+  al schema `CharacterFile` de Psych, usando los atlas Adobe Animate reales
+  del mod vía el soporte nativo `flxanimate` de Psych. Blissful-erect reusa
+  `gf.json`/`qt.json` vanilla y solo necesitó un personaje nuevo (`bf-qt-erect`,
+  ver limitación 1). Obliterated-erect no necesitó ningún personaje nuevo —
+  reusa `bf-qt`/`kb`/`gf-qt` tal cual, solo cambian los archivos de voz.
+- `stages/{qtStage,qtStageKiller,qtStageCityErect,qtStageObliteratedErect}
+  .json`+`.hx` (HScript) — anchors de personajes, zoom y fondos de cada stage,
+  sin cutscene de intro.
+- `data/{blissful,obliterated,blissful-erect,obliterated-erect}/*.json` —
+  charts convertidos del formato plano `{t,d,l,p,k}` del mod original al
+  formato de secciones de Psych. Obliterated (base y erect) tienen **BPM
+  variable**: se reconstruyó el mapeo tiempo↔beat a partir de los
+  `timeChanges` del mod (redondeando cada quiebre de tempo al múltiplo de 4
+  beats más cercano, ya que Psych solo admite cambios de BPM en límites de
+  sección).
+- **Note kind `caramella`** (`custom_notetypes/caramella.txt`, una sola línea
+  `animSuffix: '-caramella'`) — portado 100% data-driven, sin tocar código
+  fuente, aprovechando que Psych ya trae el mecanismo de sufijo de animación
+  ("Alt Animation") de fábrica. Las 73+77 notas `caramella` de Blissful-erect
+  (dificultades erect/nightmare) se convirtieron correctamente, igual que las
+  2+2 notas `noanim` (→ "No Animation", note kind nativo de Psych).
+- **Mecánica de esquivar sierras, generalizada a single/double/triple**
+  (`stages/qtStageKiller.hx` y `stages/qtStageObliteratedErect.hx`): el
+  evento de chart custom `sawKB` (con `value1` = cantidad de sierras) dispara
+  una secuencia de N golpes espaciados 1 beat, cada uno con su propia ventana
+  de esquive independiente, usando los atlas reales `saw_mechanic/warning`
+  (símbolos `alert 1/2`/`attack` para single, `doubleAlert 1/2`/
+  `doubleAttack 1/2` para double/triple) y `saw_mechanic/saw_assets`.
+  Esquivar = tecla **Accept** en la ventana de 1 beat antes de cada golpe;
+  cura 0.2 de vida por golpe esquivado, quita 1.0 (mitad de la barra) por
+  golpe fallado. Verificado contra los 27 eventos `sawKB` reales de
+  Obliterated-erect (mezcla de 1 y 2 sierras).
+- `songs/{blissful,obliterated,blissful-erect,obliterated-erect}/*.ogg` —
+  audio con voces separadas por personaje (usa `vocals_file` de Psych; los
+  archivos de voz "-erect" se renombran sin sufijo dentro de la carpeta de
+  cada canción para poder reusar el mismo personaje en varias variantes).
+- `weeks/QT.json` — las 4 canciones aparecen en Freeplay y Story Mode.
 
 ## Limitaciones conocidas / trabajo pendiente
 
-1. **BF-QT usa el sprite vanilla de Boyfriend.** El atlas "characters/BF/bf-qt"
-   que trae el mod solo contiene animaciones EXTRA (pre dance, caramelldansen,
-   dodge, saw hit) — las animaciones base de canto/idle de BF-QT en el mod
-   original reusan el atlas del BF del motor moderno oficial, que no viene
-   incluido en este mod y no tenemos. Por eso BF-QT se ve como el BF clásico
-   (sí tiene animación `dodge` propia, tomada del `bf.json` vanilla de Psych).
-2. **Sin cutscene de intro** en ninguna de las dos canciones (timeline con
-   tweens/cámara del mod original — `QtTransformSongOutro`, bus, etc.).
-3. **Eventos de cámara sin portar** (`FocusCamera`/`ZoomCamera`/`SetCameraBop`
-   con easing custom, ~84 en Blissful) — Psych sigue la cámara automáticamente
-   al cantante activo por defecto. En Obliterated sí se portaron los eventos
-   `ScrollSpeed` (→ "Change Scroll Speed" nativo de Psych, sin el tween/easing
-   del original, aplicado instantáneo) y los 10 `sawKB`.
-4. **`changeStage` sin portar** (Obliterated cambia de escenario 5 veces
-   durante la canción en el original; aquí el fondo de `qtStageKiller` se
-   queda fijo). `blackIn`/`cutsceneVideo`/`fadeStart` tampoco están portados.
-5. **Solo la variante base de cada canción.** Faltan: Blissful-erect,
-   Blissful-pico, Blissful-2021, Obliterated-erect, Obliterated-legacy — estas
-   traen su propio note kind custom (`caramella`), personajes/atlas
-   adicionales, y en el caso de Obliterated-erect probablemente doble/triple
-   sierra (la mecánica ya soporta un solo saw a la vez; single/double/triple
-   del `.hxc` original no se portó, solo single porque es lo único que usa la
-   variante base).
-6. **Solo el hit de sierra en `mode: instant damage`.** El modo "instakill"
-   / "disabled" configurable por el jugador (guardado en `Save`) del mod
-   original no está portado — siempre resta la mitad de vida.
-7. **Portrait de Story Menu genérico** (`weekCharacters` cae al personaje BF
-   por defecto — no hay arte de menú específico de QT/KB convertido todavía).
-8. **Tecla de esquive fija** (Accept/Enter), no configurable como en el mod
-   original (que guardaba un keybind custom en las opciones).
+1. **BF-QT (variante base) usa el sprite vanilla de Boyfriend.** El atlas
+   "characters/BF/bf-qt" que trae el mod solo contiene animaciones EXTRA
+   (pre dance, dodge, saw hit) — las animaciones base de canto/idle de BF-QT
+   en el mod original reusan el atlas del BF del motor moderno oficial, que
+   no viene incluido en este mod. Por eso BF-QT (base) se ve como el BF
+   clásico. **La variante erect SÍ tiene atlas propio completo**
+   (`bf-qt-erect`, con idle/sing/miss reales), usado en `bf-qt-erect.json`.
+2. **Note kind `caramella` sin diferencia visual confirmada.** Se registró
+   `singLEFT-caramella`/etc. apuntando a los MISMOS símbolos que
+   `singLEFT`/etc. normales en `bf-qt-erect.json` (no se encontró un símbolo
+   de atlas visualmente distinto y claramente rotulado para el estado
+   "caramelldansen" de BF specificamente, a diferencia de QT que sí tiene
+   `qt caramelldansen full` en su propio atlas `qt-erect`, sin portar — ver
+   punto 3). El note kind funciona (aplica el sufijo, no rompe nada), pero
+   cosméticamente puede no notarse el cambio en BF.
+3. **QT no cambia a su animación de "caramelldansen" dedicada.**
+   Blissful-erect reusa el `qt.json` normal (mismo atlas `QT_assets/qt`) para
+   simplicidad — el atlas `QT_assets/qt-erect` (con `qt caramelldansen full`,
+   `erectIntro1/2`, `erectEnding`) está identificado pero no portado.
+4. **Sin cutscene de intro** en ninguna canción (timeline con tweens/cámara
+   del mod original — `QtTransformSongOutro`, bus, etc.).
+5. **Eventos de cámara sin portar** (`FocusCamera`/`ZoomCamera`/
+   `SetCameraBop` con easing custom — ~84 en Blissful, ~291 en
+   Blissful-erect, ~190 en Obliterated-erect) — Psych sigue la cámara
+   automáticamente al cantante activo por defecto. Sí se portaron
+   `ScrollSpeed` (→ "Change Scroll Speed" nativo, instantáneo) y `sawKB` en
+   ambas variantes de Obliterated.
+6. **`changeStage` sin portar** (Obliterated cambia de escenario durante la
+   canción en el original; aquí el fondo se queda fijo por variante).
+   `blackIn`/`cutsceneVideo`/`fadeStart` tampoco están portados.
+7. **Faltan Blissful-pico, Blissful-2021, Obliterated-legacy.** Investigación
+   de metadata/personajes/stage ya hecha (ver tabla más abajo), pendiente de
+   implementar con el mismo patrón usado para erect.
+8. **Difficulties "erect"/"nightmare" remapeadas a easy/normal/hard.** El mod
+   original usa nombres de dificultad propios por variante en vez de las 3
+   estándar; para mantener consistencia con el resto del week (que usa
+   `"difficulties": "easy,normal,hard"`), se mapeó `erect→(easy y el archivo
+   sin sufijo)` y `nightmare→hard`. Cosmético: el selector de dificultad
+   dirá "Easy/Normal/Hard" en vez de "Erect/Nightmare".
+9. **Solo el hit de sierra en modo daño instantáneo.** El modo "instakill" /
+   "disabled" configurable por el jugador (guardado en `Save`) del mod
+   original no está portado — siempre resta la mitad de vida por golpe.
+10. **Portrait de Story Menu genérico** (`weekCharacters` cae al personaje BF
+    por defecto — no hay arte de menú específico de QT/KB convertido).
+11. **Tecla de esquive fija** (Accept/Enter), no configurable como en el mod
+    original (que guardaba un keybind custom en las opciones).
 
 ## Assets de origen
 
@@ -78,33 +110,47 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
 
 ## Próximos pasos sugeridos (en orden)
 
-1. Portar los eventos de cámara de Blissful a "Focus Character"/"Add Camera
-   Zoom" nativos de Psych (o custom-event HScript si se quiere el easing
-   exacto).
-2. Variantes erect/pico/2021/legacy de cada canción, incluyendo el note kind
-   `caramella` y el soporte double/triple sawblade.
-3. `changeStage` (recolorear props vía `eventCalled` en vez de cambiar de
+1. Blissful-pico y Blissful-2021 (personajes nuevos: pico-qt/nene-qt/qt-legacy
+   — ver tabla abajo), y Obliterated-legacy (reusa `qtStageKiller`, mismo
+   patrón que Obliterated-erect: solo cambian los archivos de voz).
+2. Portar los eventos de cámara a "Focus Character"/"Add Camera Zoom" nativos
+   de Psych (o custom-event HScript si se quiere el easing exacto) — pendiente
+   en las 4 canciones ya portadas.
+3. Animación dedicada de "caramelldansen" para QT (atlas `qt-erect`, símbolo
+   `qt caramelldansen full`) en vez de reusar el atlas base durante
+   Blissful-erect.
+4. `changeStage` (recolorear props vía `eventCalled` en vez de cambiar de
    escenario real) y cutscene de intro.
-4. Keybind configurable para esquivar + modos instakill/disabled desde
+5. Keybind configurable para esquivar + modos instakill/disabled desde
    opciones del mod.
 
 ## Investigación: variantes erect/pico/legacy, `caramella`, sierra doble/triple
 
-Detalle de lo que hace falta para el punto 2 de arriba, investigado contra
-`data-src/` (metadata/charts crudos del mod original) y contra
-`FunkinCrew/Funkin'` (clonado aparte para confirmar semánticas).
+Blissful-erect y Obliterated-erect ya están implementados (ver arriba);
+`caramella` y la sierra doble/triple también. Queda pendiente Blissful-pico,
+Blissful-2021 y Obliterated-legacy. Detalle investigado contra `data-src/`
+(metadata/charts crudos del mod original) y contra `FunkinCrew/Funkin'`
+(clonado aparte para confirmar semánticas).
 
 ### Variantes por canción (metadata real)
 
-| Canción-variante | `player`/`opponent`/`girlfriend` | `instrumental` | `stage` | dificultades | BPM |
-|---|---|---|---|---|---|
-| Blissful (base) | bf-qt / qt / gf-qt | — | qtStage | easy,normal,hard | 138 |
-| Blissful-erect | bf-qt / qt / **gf** (vanilla, no gf-qt) | `erect` | **qtStageCityErect** | erect,nightmare | 152 |
-| Blissful-pico | **pico-qt** / qt / **nene-qt** | `pico` | qtStagePico | easy,normal,hard | 138 |
-| Blissful-2021 | bf-qt / **qt-legacy** / gf-qt | — | qtStage2021 | easy,normal,hard | 138 |
-| Obliterated (base) | bf-qt / kb / gf-qt | — | qtStageKiller | easy,normal,hard | 245 (variable) |
-| Obliterated-erect | bf-qt / kb / gf-qt (voces `bf-erect`/`kb-erect`) | `erect` | **qtStageObliteratedErect** | erect,nightmare | 152→160 (variable) |
-| Obliterated-legacy | bf-qt / kb / gf-qt | `legacy` | qtStageKiller (mismo stage) | easy,normal,hard | 245 (variable) |
+| Canción-variante | `player`/`opponent`/`girlfriend` | `instrumental` | `stage` | dificultades | BPM | Estado |
+|---|---|---|---|---|---|---|
+| Blissful (base) | bf-qt / qt / gf-qt | — | qtStage | easy,normal,hard | 138 | ✅ portado |
+| Blissful-erect | bf-qt-erect / qt / **gf** (vanilla) | `erect` | qtStageCityErect | erect,nightmare | 152 | ✅ portado |
+| Blissful-pico | **pico-qt** / qt / **nene-qt** | `pico` | qtStagePico | easy,normal,hard | 138 | ⬜ pendiente |
+| Blissful-2021 | bf-qt / **qt-legacy** / gf-qt | — | qtStage2021 | easy,normal,hard | 138 | ⬜ pendiente |
+| Obliterated (base) | bf-qt / kb / gf-qt | — | qtStageKiller | easy,normal,hard | 245 (variable) | ✅ portado |
+| Obliterated-erect | bf-qt / kb / gf-qt (voces `bf-erect`/`kb-erect`) | `erect` | qtStageObliteratedErect | erect,nightmare | 152→160 (variable) | ✅ portado |
+| Obliterated-legacy | bf-qt / kb / gf-qt | `legacy` | qtStageKiller (mismo stage) | easy,normal,hard | 245 (variable) | ⬜ pendiente |
+
+Obliterated-legacy es el más simple de los 3 pendientes: mismo stage, mismos
+personajes, solo requiere convertir su chart (`obliterated-metadata-legacy.json`
++ `obliterated-chart-legacy.json`, ya en `data-src/`) y copiar
+`Inst-legacy.ogg`/`Voices-bf-qt-legacy.ogg`/`Voices-kb-legacy.ogg` — mismo
+patrón exacto que Obliterated-erect. Pico y 2021 requieren personajes nuevos
+(pico-qt, nene-qt, qt-legacy) que aún no se investigaron en detalle
+(animaciones/atlas disponibles).
 
 Cada variante es efectivamente **una canción nueva** para Psych (chart +
 personajes + stage propios), no un simple flag — así que portarlas es repetir

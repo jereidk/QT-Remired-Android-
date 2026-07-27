@@ -1,24 +1,24 @@
 import openfl.display.BlendMode;
 
-// --- Background layers ---
-var tvStaticLeft:FlxSprite;
-var tvStaticRight:FlxSprite;
-var warningScreen:FlxSprite;
-var blueScreen:FlxSprite;
-var tvShadow:FlxSprite;
-var wall:FlxSprite;
-var tvShine:FlxSprite;
-var tvLights:FlxSprite;
-var tvFront:FlxSprite;
-var tvFrontShine:FlxSprite;
-var fgWireBack:FlxSprite;
-var fgWireFront:FlxSprite;
-var lightOverlay:FlxSprite;
+var sky:FlxSprite;
+var bgBuildings2:FlxSprite;
+var bgBuilding:FlxSprite;
+var sign:FlxSprite;
+var lampAndBuilding:FlxSprite;
+var storeBg:FlxSprite;
+var storeInterior:FlxSprite;
+var tvStatic:FlxSprite;
+var mainGround:FlxSprite;
+var flower:FlxSprite;
+var grass:FlxSprite;
+var posterProp:FlxSprite;
+var tvLightsOverlay:FlxSprite;
+var car:FlxSprite;
+var windProp:FlxSprite;
+var overlayAdd:FlxSprite;
 var blackScreen:FlxSprite;
-var spotLight:FlxSprite;
-var redScreen:FlxSprite;
 
-// --- Sawblade dodge mechanic ---
+// --- Sawblade dodge mechanic (same as qtStageKiller.hx) ---
 var sawSprite:FlxAnimate;
 var warningVfx:FlxAnimate;
 var dodgeActive:Bool = false;
@@ -28,99 +28,105 @@ var dodgeUsed:Bool = false;
 
 function onCreate()
 {
-	tvStaticLeft = new FlxSprite(-230, 523);
-	tvStaticLeft.frames = Paths.getSparrowAtlas('obliterated/tv_static_assets');
-	tvStaticLeft.animation.addByPrefix('static', 'static anim', 24, true);
-	tvStaticLeft.animation.play('static');
-	tvStaticLeft.scrollFactor.set(0.99, 0.99);
-	game.add(tvStaticLeft);
+	sky = new FlxSprite(-973, -1076);
+	sky.loadGraphic(Paths.image('obliteratedErect/sky'));
+	game.add(sky);
 
-	tvStaticRight = new FlxSprite(1231, 523);
-	tvStaticRight.frames = Paths.getSparrowAtlas('obliterated/tv_static_assets');
-	tvStaticRight.animation.addByPrefix('static', 'static anim', 24, true);
-	tvStaticRight.animation.play('static');
-	tvStaticRight.scrollFactor.set(0.99, 0.99);
-	game.add(tvStaticRight);
+	bgBuildings2 = new FlxSprite(-606, -671);
+	bgBuildings2.loadGraphic(Paths.image('obliteratedErect/bgBuildings2'));
+	bgBuildings2.scrollFactor.set(0.8, 0.8);
+	game.add(bgBuildings2);
 
-	warningScreen = new FlxSprite(-115, 581);
-	warningScreen.loadGraphic(Paths.image('obliterated/screen_danger'));
-	warningScreen.scrollFactor.set(0.99, 0.99);
-	game.add(warningScreen);
+	bgBuilding = new FlxSprite(-1075, -835);
+	bgBuilding.loadGraphic(Paths.image('obliteratedErect/bgBuilding'));
+	bgBuilding.scrollFactor.set(0.75, 0.75);
+	game.add(bgBuilding);
 
-	blueScreen = new FlxSprite(-115, 581);
-	blueScreen.loadGraphic(Paths.image('obliterated/blue_screens'));
-	blueScreen.scrollFactor.set(0.99, 0.99);
-	blueScreen.alpha = 0;
-	game.add(blueScreen);
+	sign = new FlxSprite(30, -425);
+	sign.loadGraphic(Paths.image('obliteratedErect/signBetterCallSahur'));
+	sign.scrollFactor.set(0.85, 0.85);
+	game.add(sign);
 
-	tvShadow = new FlxSprite(-150, 530);
-	tvShadow.loadGraphic(Paths.image('obliterated/tv_shadow'));
-	tvShadow.scrollFactor.set(0.99, 0.99);
-	game.add(tvShadow);
+	lampAndBuilding = new FlxSprite(875, 125);
+	lampAndBuilding.loadGraphic(Paths.image('obliteratedErect/lampAndBuilding'));
+	lampAndBuilding.scrollFactor.set(0.8, 0.8);
+	game.add(lampAndBuilding);
 
-	wall = new FlxSprite(-649, -42);
-	wall.loadGraphic(Paths.image('obliterated/bg'));
-	wall.scrollFactor.set(0.99, 0.99);
-	game.add(wall);
+	storeBg = new FlxSprite(-989, 446);
+	storeBg.loadGraphic(Paths.image('obliteratedErect/storeBg'));
+	storeBg.scale.set(1.0057, 1.0057);
+	storeBg.updateHitbox();
+	game.add(storeBg);
 
-	tvShine = new FlxSprite(-306, 572);
-	tvShine.loadGraphic(Paths.image('obliterated/tv_shine'));
-	tvShine.scrollFactor.set(0.99, 0.99);
-	game.add(tvShine);
+	storeInterior = new FlxSprite(-985, 437);
+	storeInterior.loadGraphic(Paths.image('obliteratedErect/storeInterior'));
+	storeInterior.scale.set(0.6663, 0.6663);
+	storeInterior.updateHitbox();
+	storeInterior.scrollFactor.set(0.95, 0.95);
+	game.add(storeInterior);
+
+	tvStatic = new FlxSprite(89, 580);
+	tvStatic.frames = Paths.getSparrowAtlas('obliteratedErect/tvScreens');
+	tvStatic.animation.addByPrefix('tvStatic', 'tvStatic', 24, true);
+	tvStatic.animation.play('tvStatic');
+	game.add(tvStatic);
+
+	mainGround = new FlxSprite(-992, -305);
+	mainGround.loadGraphic(Paths.image('obliteratedErect/mainGround'));
+	game.add(mainGround);
+
+	flower = new FlxSprite(-56, 1080);
+	flower.frames = Paths.getSparrowAtlas('obliteratedErect/flower');
+	flower.animation.addByPrefix('flower', 'flower', 24, true);
+	flower.animation.play('flower');
+	game.add(flower);
+
+	grass = new FlxSprite(1598, 1115);
+	grass.frames = Paths.getSparrowAtlas('obliteratedErect/grass');
+	grass.animation.addByPrefix('grass', 'grass', 24, true);
+	grass.animation.play('grass');
+	game.add(grass);
+
+	posterProp = new FlxSprite(1665, 846);
+	posterProp.frames = Paths.getSparrowAtlas('obliteratedErect/poster');
+	posterProp.animation.addByPrefix('poster', 'poster', 24, true);
+	posterProp.animation.play('poster');
+	game.add(posterProp);
+
+	tvLightsOverlay = new FlxSprite(-300, 155);
+	tvLightsOverlay.frames = Paths.getSparrowAtlas('obliteratedErect/tvLightsAdd');
+	tvLightsOverlay.animation.addByPrefix('tvLights', 'tvLights', 24, true);
+	tvLightsOverlay.animation.play('tvLights');
+	tvLightsOverlay.blend = BlendMode.ADD;
+	game.add(tvLightsOverlay);
 }
 
 function onCreatePost()
 {
-	tvLights = new FlxSprite(-332, 214);
-	tvLights.frames = Paths.getSparrowAtlas('obliterated/tv_lights_assets');
-	tvLights.animation.addByPrefix('Normal', 'tv lights animated', 24, true);
-	tvLights.animation.play('Normal');
-	tvLights.blend = BlendMode.ADD;
-	tvLights.scrollFactor.set(1, 1);
-	game.add(tvLights);
+	car = new FlxSprite(-1048, 810);
+	car.loadGraphic(Paths.image('obliteratedErect/car'));
+	car.scrollFactor.set(1.03, 1.03);
+	game.add(car);
 
-	tvFront = new FlxSprite(-314, 873);
-	tvFront.loadGraphic(Paths.image('obliterated/fg'));
-	tvFront.scrollFactor.set(1.35, 1.35);
-	game.add(tvFront);
+	windProp = new FlxSprite(-1000, 280);
+	windProp.frames = Paths.getSparrowAtlas('obliteratedErect/wind');
+	windProp.animation.addByPrefix('wind', 'wind', 24, true);
+	windProp.animation.play('wind');
+	game.add(windProp);
 
-	tvFrontShine = new FlxSprite(45, 873);
-	tvFrontShine.loadGraphic(Paths.image('obliterated/fg_shine'));
-	tvFrontShine.scrollFactor.set(1.35, 1.35);
-	tvFrontShine.color = 0xFFC986BD;
-	game.add(tvFrontShine);
+	overlayAdd = new FlxSprite(-1242, -1060);
+	overlayAdd.loadGraphic(Paths.image('obliteratedErect/overlayAdd'));
+	overlayAdd.scrollFactor.set(1, 0.5);
+	overlayAdd.blend = BlendMode.ADD;
+	overlayAdd.alpha = 0.15;
+	game.add(overlayAdd);
 
-	fgWireBack = new FlxSprite(-331, -48);
-	fgWireBack.loadGraphic(Paths.image('obliterated/wire1'));
-	fgWireBack.scrollFactor.set(1.5, 1.5);
-	game.add(fgWireBack);
-
-	fgWireFront = new FlxSprite(-361, -51);
-	fgWireFront.loadGraphic(Paths.image('obliterated/wire2'));
-	fgWireFront.scrollFactor.set(1.8, 1.8);
-	game.add(fgWireFront);
-
-	lightOverlay = new FlxSprite(-654, -60);
-	lightOverlay.frames = Paths.getSparrowAtlas('common/gradientManager');
-	lightOverlay.animation.addByPrefix('Normal', 'overlay-Normal', 24, true);
-	lightOverlay.animation.play('Normal');
-	lightOverlay.blend = BlendMode.ADD;
-	game.add(lightOverlay);
-
-	blackScreen = new FlxSprite(-649, -42);
-	blackScreen.makeGraphic(2589, 1306, FlxColor.BLACK);
+	blackScreen = new FlxSprite(0, 0);
+	blackScreen.makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
+	blackScreen.scrollFactor.set(0, 0);
+	blackScreen.cameras = [game.camGame];
 	blackScreen.alpha = 0;
 	game.add(blackScreen);
-
-	spotLight = new FlxSprite(-10, -390);
-	spotLight.loadGraphic(Paths.image('cutscene/lightFocus'));
-	spotLight.alpha = 0;
-	game.add(spotLight);
-
-	redScreen = new FlxSprite(-649, -342);
-	redScreen.makeGraphic(2589, 1506, 0xFFB81404);
-	redScreen.alpha = 0;
-	game.add(redScreen);
 
 	// Sawblade mechanic sprites, hidden until the first "sawKB" event fires.
 	warningVfx = new FlxAnimate();

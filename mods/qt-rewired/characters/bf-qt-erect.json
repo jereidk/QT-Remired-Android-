@@ -1,0 +1,118 @@
+{
+	"image": "characters/BF/bf-qt-erect",
+	"scale": 1,
+	"sing_duration": 4,
+	"healthicon": "bf",
+	"position": [0, 0],
+	"camera_position": [-18, 36],
+	"flip_x": true,
+	"no_antialiasing": false,
+	"healthbar_colors": [255, 0, 0],
+	"vocals_file": "bf-qt-erect",
+	"animations": [
+		{
+			"anim": "idle",
+			"name": "export/BF idle dance",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singLEFT",
+			"name": "export/left alt",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singDOWN",
+			"name": "alt export/down alt",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singUP",
+			"name": "alt export/up alt",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singRIGHT",
+			"name": "export/right alt",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singLEFTmiss",
+			"name": "alt pose left miss",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singDOWNmiss",
+			"name": "alt down pose miss",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singUPmiss",
+			"name": "alt pose up miss",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singRIGHTmiss",
+			"name": "alt pose right miss",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singLEFT-caramella",
+			"name": "export/left alt",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singDOWN-caramella",
+			"name": "alt export/down alt",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singUP-caramella",
+			"name": "alt export/up alt",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singRIGHT-caramella",
+			"name": "export/right alt",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		}
+	]
+}

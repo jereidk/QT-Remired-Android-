@@ -1,0 +1,14 @@
+{
+  "song": {
+    "song": "Blissful Erect",
+    "notes": [],
+    "events": [],
+    "bpm": 152.0,
+    "needsVoices": true,
+    "speed": 2.4,
+    "player1": "bf-qt-erect",
+    "player2": "qt",
+    "gfVersion": "gf",
+    "stage": "qtStageCityErect"
+  }
+}
