@@ -160,6 +160,8 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 		if (numSaws == null || numSaws <= 0) numSaws = 1;
 		startSawSequence(numSaws);
 	}
+	else if (eventName == 'FocusCamera') focusCamera(value1, value2);
+	else if (eventName == 'ZoomCamera') zoomCamera(value1, value2);
 }
 
 // Sequence timeline (beats, relative to the event's strumTime):
@@ -285,4 +287,85 @@ function onUpdate(elapsed:Float)
 	{
 		tryDodge();
 	}
+}
+
+// --- Camera focus/zoom events, ported with real tweening (Psych's native
+// "Camera Follow Pos"/"Add Camera Zoom" only snap instantly) - see
+// PORT_INFO.md for the FocusCamera/ZoomCamera event format. ---
+var cameraFollowTween:FlxTween;
+var cameraZoomTween:FlxTween;
+
+function resolveEase(name:String):Float->Float
+{
+	if (name == null || name.length < 1) return FlxEase.linear;
+	var fn = Reflect.field(FlxEase, name);
+	return (fn != null) ? fn : FlxEase.linear;
+}
+
+function focusCamera(value1:String, value2:String)
+{
+	var p:Array<String> = value1.split(',');
+	var char:Int = Std.parseInt(p[0]);
+	var offX:Float = p.length > 1 ? Std.parseFloat(p[1]) : 0;
+	var offY:Float = p.length > 2 ? Std.parseFloat(p[2]) : 0;
+
+	var e:Array<String> = value2.split(',');
+	var duration:Float = e.length > 0 ? Std.parseFloat(e[0]) : 4;
+	var ease:String = e.length > 1 ? e[1] : 'linear';
+
+	var tx:Float = offX;
+	var ty:Float = offY;
+
+	if (char == 0 && game.boyfriend != null)
+	{
+		tx += game.boyfriend.getMidpoint().x - 100 - (game.boyfriend.cameraPosition[0] - game.boyfriendCameraOffset[0]);
+		ty += game.boyfriend.getMidpoint().y - 100 + game.boyfriend.cameraPosition[1] + game.boyfriendCameraOffset[1];
+	}
+	else if (char == 1 && game.dad != null)
+	{
+		tx += game.dad.getMidpoint().x + 150 + game.dad.cameraPosition[0] + game.opponentCameraOffset[0];
+		ty += game.dad.getMidpoint().y - 100 + game.dad.cameraPosition[1] + game.opponentCameraOffset[1];
+	}
+	else if (char == 2 && game.gf != null)
+	{
+		tx += game.gf.getMidpoint().x + game.gf.cameraPosition[0] + game.girlfriendCameraOffset[0];
+		ty += game.gf.getMidpoint().y + game.gf.cameraPosition[1] + game.girlfriendCameraOffset[1];
+	}
+
+	game.isCameraOnForcedPos = true;
+	if (cameraFollowTween != null) cameraFollowTween.cancel();
+
+	if (ease == 'CLASSIC')
+	{
+		game.camFollow.setPosition(tx, ty);
+	}
+	else
+	{
+		var durSeconds:Float = (ease == 'INSTANT') ? 0.001 : Conductor.stepCrochet * duration / 1000;
+		cameraFollowTween = FlxTween.tween(game.camFollow, {x: tx, y: ty}, durSeconds, {ease: resolveEase(ease)});
+	}
+}
+
+function zoomCamera(value1:String, value2:String)
+{
+	var p:Array<String> = value1.split(',');
+	var zoom:Float = p.length > 0 ? Std.parseFloat(p[0]) : 1;
+	var mode:String = p.length > 1 ? p[1] : 'stage';
+
+	var e:Array<String> = value2.split(',');
+	var duration:Float = e.length > 0 ? Std.parseFloat(e[0]) : 4;
+	var ease:String = e.length > 1 ? e[1] : 'linear';
+
+	var target:Float = zoom * (mode == 'direct' ? 1 : game.defaultCamZoom);
+
+	if (cameraZoomTween != null) cameraZoomTween.cancel();
+
+	if (ease == 'INSTANT')
+	{
+		FlxG.camera.zoom = target;
+		return;
+	}
+
+	var durSeconds:Float = Conductor.stepCrochet * duration / 1000;
+	cameraZoomTween = FlxTween.tween(FlxG.camera, {zoom: target}, durSeconds, {ease: resolveEase(ease)});
 }

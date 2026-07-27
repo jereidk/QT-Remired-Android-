@@ -53,6 +53,19 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   cada canción para poder reusar el mismo personaje en varias variantes).
 - `weeks/QT.json` — las 7 canciones/variantes aparecen en Freeplay y Story
   Mode.
+- **Eventos de cámara `FocusCamera`/`ZoomCamera` con tween real** (no el
+  salto instantáneo del evento nativo "Camera Follow Pos"/"Add Camera Zoom"
+  de Psych). Cada uno de los 6 stages implementa `focusCamera()`/
+  `zoomCamera()` en HScript: replican exactamente la matemática de
+  `PlayState.moveCamera()` (posición de personaje + `cameraPosition` propio +
+  `camera_boyfriend`/`camera_opponent`/`camera_girlfriend` del stage) y
+  tweenan `camFollow`/`FlxG.camera.zoom` con el mismo nombre de función de
+  easing que trae el chart original (`Reflect.field(FlxEase, name)`),
+  verificado contra `funkin.play.event.FocusCameraSongEvent`/
+  `ZoomCameraSongEvent` reales. `game.isCameraOnForcedPos = true` evita que
+  el auto-seguimiento de Psych pise el tween cada sección. Se portaron **~1027
+  eventos de cámara** en total entre las 7 canciones (25-118 FocusCamera y
+  36-169 ZoomCamera por canción, ver `data/*/events.json`).
 
 ## Limitaciones conocidas / trabajo pendiente
 
@@ -82,11 +95,9 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    `erectIntro1/2`, `erectEnding`) está identificado pero no portado.
 4. **Sin cutscene de intro** en ninguna canción (timeline con tweens/cámara
    del mod original — `QtTransformSongOutro`, bus, etc.).
-5. **Eventos de cámara sin portar** en ninguna canción (`FocusCamera`/
-   `ZoomCamera`/`SetCameraBop` con easing custom) — Psych sigue la cámara
-   automáticamente al cantante activo por defecto. Sí se portaron
-   `ScrollSpeed` (→ "Change Scroll Speed" nativo, instantáneo) y `sawKB` en
-   las 3 variantes de Obliterated.
+5. **`SetCameraBop` sin portar** (oscilación continua de zoom por beat,
+   efecto menor) — sí se portaron `FocusCamera`/`ZoomCamera` con tween real
+   (ver arriba) y `ScrollSpeed`/`sawKB` en las 3 variantes de Obliterated.
 6. **`changeStage` sin portar** (Obliterated cambia de escenario durante la
    canción en el original; aquí el fondo se queda fijo por variante).
    `blackIn`/`cutsceneVideo`/`fadeStart` tampoco están portados.
@@ -121,13 +132,11 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
 1. Animación dedicada de "caramelldansen" para QT (atlas `qt-erect`, símbolo
    `qt caramelldansen full`) en vez de reusar el atlas base durante
    Blissful-erect.
-2. Portar los eventos de cámara a "Focus Character"/"Add Camera Zoom" nativos
-   de Psych (o custom-event HScript si se quiere el easing exacto) — pendiente
-   en las 7 canciones/variantes ya portadas.
-3. `changeStage` (recolorear props vía `eventCalled` en vez de cambiar de
+2. `changeStage` (recolorear props vía `eventCalled` en vez de cambiar de
    escenario real) y cutscene de intro.
-4. Keybind configurable para esquivar + modos instakill/disabled desde
+3. Keybind configurable para esquivar + modos instakill/disabled desde
    opciones del mod.
+4. `SetCameraBop` (oscilación de zoom por beat).
 5. Prop "cars" de `qtStagePico` (requiere integrar `FlxAnimate` para un prop
    de fondo, no solo personajes/sierra).
 
