@@ -1,6 +1,7 @@
 {
 	"songs": [
-		["Blissful", "qt", [255, 105, 180]]
+		["Blissful", "qt", [255, 105, 180]],
+		["Obliterated", "kb", [200, 30, 30]]
 	],
 	"weekCharacters": ["qt", "bf-qt", "gf-qt"],
 	"weekBackground": "",

@@ -89,6 +89,14 @@
 			"loop": false,
 			"indices": [],
 			"offsets": [-3, 5]
+		},
+		{
+			"anim": "dodge",
+			"name": "boyfriend dodge",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [-10, -16]
 		}
 	]
 }
