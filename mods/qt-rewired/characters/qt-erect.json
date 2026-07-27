@@ -1,0 +1,38 @@
+{
+	"image": "characters/QT_assets/qt-erect",
+	"scale": 1,
+	"sing_duration": 6,
+	"healthicon": "qt",
+	"position": [0, 0],
+	"camera_position": [0, 0],
+	"flip_x": false,
+	"no_antialiasing": false,
+	"healthbar_colors": [255, 105, 180],
+	"vocals_file": "qt",
+	"animations": [
+		{
+			"anim": "idle",
+			"name": "qt caramelldansen full",
+			"fps": 24,
+			"loop": true,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "danceRight",
+			"name": "qt caramelldansen full",
+			"fps": 24,
+			"loop": true,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "danceLeft",
+			"name": "qt caramelldansen full",
+			"fps": 24,
+			"loop": true,
+			"indices": [],
+			"offsets": [0, 0]
+		}
+	]
+}

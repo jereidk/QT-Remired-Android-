@@ -22,12 +22,28 @@ var reeds:FlxSprite;
 var tvFG:FlxSprite;
 var difOv:FlxSprite;
 var sunOv:FlxSprite;
+var cars:FlxAnimate;
 
 function onCreate()
 {
 	floorUnder = new FlxSprite(158, 460);
 	floorUnder.makeGraphic(2045, 728, 0xFF4B7334);
 	game.add(floorUnder);
+
+	// "cars" is an Adobe Animate atlas with no symbol dictionary - just a
+	// main timeline whose frame labels are car-0..car-3. addByFrameLabel
+	// operates on that root timeline directly (unlike addBySymbol, which
+	// needs a named symbol library entry).
+	cars = new FlxAnimate(-600, 30);
+	cars.showPivot = false;
+	Paths.loadAnimateAtlas(cars, 'outskirts/cars');
+	cars.anim.addByFrameLabel('car-0', 'car-0', 24, false);
+	cars.anim.addByFrameLabel('car-1', 'car-1', 24, false);
+	cars.anim.addByFrameLabel('car-2', 'car-2', 24, false);
+	cars.anim.addByFrameLabel('car-3', 'car-3', 24, false);
+	cars.anim.play('car-0');
+	cars.scrollFactor.set(0.9, 1);
+	game.add(cars);
 
 	sky = new FlxSprite(-270, -356);
 	sky.loadGraphic(Paths.image('outskirts/sky'));
@@ -140,6 +156,7 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 {
 	if (eventName == 'FocusCamera') focusCamera(value1, value2);
 	else if (eventName == 'ZoomCamera') zoomCamera(value1, value2);
+	else if (eventName == 'SetCameraBop') setCameraBop(value1, value2);
 }
 
 // --- Camera focus/zoom events, ported with real tweening (Psych's native
@@ -221,4 +238,34 @@ function zoomCamera(value1:String, value2:String)
 
 	var durSeconds:Float = Conductor.stepCrochet * duration / 1000;
 	cameraZoomTween = FlxTween.tween(FlxG.camera, {zoom: target}, durSeconds, {ease: resolveEase(ease)});
+}
+
+// --- SetCameraBop: periodic camera zoom pulse (see PORT_INFO.md) ---
+var bopRate:Float = 4;
+var bopOffset:Float = 0;
+var bopIntensity:Float = 1.0;
+
+function setCameraBop(value1:String, value2:String)
+{
+	var p:Array<String> = value1.split(',');
+	bopIntensity = (p.length > 0 && p[0].length > 0) ? Std.parseFloat(p[0]) : 1.0;
+	bopRate = (p.length > 1 && p[1].length > 0) ? Std.parseFloat(p[1]) : 4;
+	bopOffset = (p.length > 2 && p[2].length > 0) ? Std.parseFloat(p[2]) : 0;
+}
+
+function onBeatHit()
+{
+	if (bopRate <= 0 || bopIntensity == 1.0) return;
+
+	var beat:Int = getVar('curBeat');
+	if (Math.round((beat + bopOffset) % bopRate) != 0) return;
+
+	var bump:Float = (bopIntensity - 1.0) * game.defaultCamZoom;
+	var startZoom:Float = FlxG.camera.zoom;
+	var half:Float = (Conductor.crochet * bopRate) / 2000;
+
+	FlxTween.tween(FlxG.camera, {zoom: startZoom + bump}, half, {
+		ease: FlxEase.quadOut,
+		onComplete: function(_) FlxTween.tween(FlxG.camera, {zoom: startZoom}, half, {ease: FlxEase.quadIn})
+	});
 }

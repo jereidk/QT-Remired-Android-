@@ -1,0 +1,18 @@
+[
+	{
+		name: 'Dodge Key',
+		description: 'Key used to dodge sawblade attacks in Obliterated.',
+		save: 'qtDodgeKey',
+		type: 'keybind',
+		keyboard: 'SPACE',
+		gamepad: 'A'
+	},
+	{
+		name: 'Sawblade Mode',
+		description: 'What happens when you fail to dodge a sawblade attack.',
+		save: 'qtSawMode',
+		type: 'string',
+		options: ['Damage', 'Instakill', 'Disabled'],
+		value: 'Damage'
+	}
+]

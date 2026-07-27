@@ -66,10 +66,41 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   el auto-seguimiento de Psych pise el tween cada sección. Se portaron **~1027
   eventos de cámara** en total entre las 7 canciones (25-118 FocusCamera y
   36-169 ZoomCamera por canción, ver `data/*/events.json`).
+- **`SetCameraBop`** (oscilación de zoom por beat) en los 6 stages: un tween
+  de ida y vuelta cada N beats (parámetros `intensity,rate,offset` del chart
+  original), usando `getVar('curBeat')` para saber en qué beat va la canción.
+- **`changeStage`** (Obliterated/Obliterated-legacy): recolorea `tvLights`/
+  `lightOverlay` entre Normal/Killer/Blue/Red — confirmado que eso es
+  literalmente todo lo que hace el evento original (no cambia de escenario).
+- **Keybind de esquive configurable + modos instakill/disabled**
+  (`data/settings.json`, un archivo de opciones de mod estándar de Psych):
+  el menú de "Mod Settings" del juego ahora tiene "Dodge Key" (rebindeable,
+  teclado y gamepad) y "Sawblade Mode" (Damage/Instakill/Disabled). Leído en
+  tiempo real desde las stages vía el `getModSetting()`/`keyboardJustPressed()`
+  ya presets de Psych, sin tocar código fuente.
+- **Prop "cars" de `qtStagePico`** con `FlxAnimate` real (`addByFrameLabel`
+  sobre el timeline principal del atlas, ya que este atlas en particular no
+  tiene diccionario de símbolos, solo etiquetas de frame en el timeline raíz).
+- **Animación dedicada de "caramelldansen" para QT** en Blissful-erect: nuevo
+  personaje `qt-erect` (atlas `QT_assets/qt-erect`, símbolo
+  `qt caramelldansen full`) intercambiado mediante el evento nativo
+  `Change Character` de Psych durante la ventana exacta de la sección
+  (confirmado que QT no canta ninguna nota durante esos ~24s, así que el
+  intercambio de personaje es seguro) y devuelto a `qt` al terminar.
+- **Cutscene de intro simplificada** en Blissful (base): al terminar la
+  canción por primera vez, se intercepta `onEndSong`/`Function_Stop` (mismo
+  mecanismo que usaba el mod original con `hasPlayedOutro`) para mostrar un
+  fundido a negro + spotlight + el sonido `qtsfx` antes de continuar
+  normalmente vía `game.endSong()`. Ver limitación 3 sobre el alcance
+  reducido frente al original.
+- **Corregido un bug latente de BOM UTF-8** en varios `spritemap1.json` (QT,
+  sierra, GF-QT, BF-QT, BF-QT-erect) que venían con marca de orden de bytes
+  del exportador de Adobe Animate — potencialmente rompía el parseo JSON de
+  Haxe en runtime. Verificado y limpiado en todo el mod.
 
 ## Limitaciones conocidas / trabajo pendiente
 
-1. **Tres personajes usan sprite vanilla en vez del atlas real del mod**,
+1. **Dos personajes usan sprite vanilla en vez del atlas real del mod**,
    porque ese atlas específico es del juego base del motor moderno y no viene
    incluido en el paquete del mod (solo trae animaciones EXTRA sobre esa
    base):
@@ -88,36 +119,34 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    `singLEFT`/etc. normales en `bf-qt-erect.json` (no se encontró un símbolo
    de atlas visualmente distinto para el estado "caramelldansen" de BF
    específicamente). El note kind funciona (aplica el sufijo, no rompe nada),
-   pero cosméticamente puede no notarse el cambio en BF.
-3. **QT no cambia a su animación de "caramelldansen" dedicada.**
-   Blissful-erect reusa el `qt.json` normal (mismo atlas `QT_assets/qt`) para
-   simplicidad — el atlas `QT_assets/qt-erect` (con `qt caramelldansen full`,
-   `erectIntro1/2`, `erectEnding`) está identificado pero no portado.
-4. **Sin cutscene de intro** en ninguna canción (timeline con tweens/cámara
-   del mod original — `QtTransformSongOutro`, bus, etc.).
-5. **`SetCameraBop` sin portar** (oscilación continua de zoom por beat,
-   efecto menor) — sí se portaron `FocusCamera`/`ZoomCamera` con tween real
-   (ver arriba) y `ScrollSpeed`/`sawKB` en las 3 variantes de Obliterated.
-6. **`changeStage` sin portar** (Obliterated cambia de escenario durante la
-   canción en el original; aquí el fondo se queda fijo por variante).
-   `blackIn`/`cutsceneVideo`/`fadeStart` tampoco están portados.
-7. **Difficulties no estándar remapeadas a easy/normal/hard.** El mod
+   pero cosméticamente puede no notarse el cambio en BF. **QT sí tiene su
+   animación dedicada** ahora (ver "Notas de implementación" abajo).
+3. **Cutscene de intro simplificada.** El original (`QtTransformSongOutro.hxc`)
+   animaba una transformación completa de QT con un sprite de bus y
+   coreografía de cámara. La versión portada (`qtStage.hx`, solo en Blissful
+   base) es un placeholder honesto: fade a negro + spotlight + el sonido
+   original `qtsfx` + espera + fade de vuelta, usando `onEndSong`/
+   `Function_Stop` para interceptar el fin de canción una sola vez (igual que
+   el `hasPlayedOutro` original) y `game.endSong()` para continuar
+   normalmente después. Sin sprite de QT transformándose ni bus.
+4. **`changeStage` solo recolorea, no cambia de escenario real.** Se portó
+   correctamente para Obliterated/Obliterated-legacy (`tvLights`/
+   `lightOverlay` cambian entre Normal/Killer/Blue/Red, que es literalmente
+   todo lo que hacía el evento original — no mueve ni cambia ningún otro
+   prop). `blackIn`/`cutsceneVideo`/`fadeStart` siguen sin portar.
+5. **Difficulties no estándar remapeadas a easy/normal/hard.** El mod
    original usa nombres de dificultad propios por variante (`erect`/
    `nightmare` en vez de las 3 estándar); para mantener consistencia con el
    resto del week (`"difficulties": "easy,normal,hard"`), se mapeó
    `erect→(easy y el archivo sin sufijo)` y `nightmare→hard`. Cosmético: el
    selector de dificultad dirá "Easy/Normal/Hard" en vez de "Erect/Nightmare".
-8. **Solo el hit de sierra en modo daño instantáneo.** El modo "instakill" /
-   "disabled" configurable por el jugador (guardado en `Save`) del mod
-   original no está portado — siempre resta la mitad de vida por golpe.
-9. **Portrait de Story Menu genérico** (`weekCharacters` cae al personaje BF
+6. **Portrait de Story Menu genérico** (`weekCharacters` cae al personaje BF
    por defecto — no hay arte de menú específico de QT/KB/Pico convertido).
-10. **Tecla de esquive fija** (Accept/Enter), no configurable como en el mod
-    original (que guardaba un keybind custom en las opciones).
-11. **Prop "cars" de `qtStagePico` sin portar** — es el único prop de fondo
-    del mod que usa un atlas Adobe Animate en vez de sparrow/PNG estático; se
-    omitió para no meter una segunda ruta de renderizado solo para un detalle
-    menor de fondo (autos pasando).
+7. **`SetCameraBop` es una aproximación, no una réplica exacta.** El original
+   decae el multiplicador de zoom continuamente cada frame
+   (`cameraBopMultiplier` con `Math.pow(decayRate, dt)`); la versión portada
+   usa un tween de ida y vuelta de duración fija por golpe. Visualmente muy
+   similar, pero no es la misma curva de decaimiento.
 
 ## Assets de origen
 
@@ -129,16 +158,17 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
 
 ## Próximos pasos sugeridos (en orden)
 
-1. Animación dedicada de "caramelldansen" para QT (atlas `qt-erect`, símbolo
-   `qt caramelldansen full`) en vez de reusar el atlas base durante
-   Blissful-erect.
-2. `changeStage` (recolorear props vía `eventCalled` en vez de cambiar de
-   escenario real) y cutscene de intro.
-3. Keybind configurable para esquivar + modos instakill/disabled desde
-   opciones del mod.
-4. `SetCameraBop` (oscilación de zoom por beat).
-5. Prop "cars" de `qtStagePico` (requiere integrar `FlxAnimate` para un prop
-   de fondo, no solo personajes/sierra).
+1. Blissful-pico y Blissful-2021 aún no tienen la cutscene de intro simplificada
+   ni la animación dedicada de QT (solo se hizo para Blissful/Blissful-erect
+   respectivamente) — extender el mismo patrón si se quiere consistencia.
+2. Cutscene de intro completa (sprite de QT transformándose + bus), en vez de
+   la versión simplificada (fade + spotlight + sfx) que hay ahora.
+3. Portrait de Story Menu específico para QT/KB/Pico (en vez de caer al
+   genérico de BF).
+4. `blackIn`/`cutsceneVideo`/`fadeStart` (eventos de Obliterated/legacy aún
+   sin portar, relacionados con la cutscene completa del punto 2).
+5. Curva de decaimiento exacta para `SetCameraBop` (actualmente es un tween
+   de ida y vuelta de duración fija, no la exponencial continua del original).
 
 ## Notas de implementación por variante
 

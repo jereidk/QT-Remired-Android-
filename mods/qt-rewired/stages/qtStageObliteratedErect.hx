@@ -162,12 +162,14 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 {
 	if (eventName == 'sawKB')
 	{
+		if (getSawMode() == 'Disabled') return;
 		var numSaws:Int = Std.parseInt(value1);
 		if (numSaws == null || numSaws <= 0) numSaws = 1;
 		startSawSequence(numSaws);
 	}
 	else if (eventName == 'FocusCamera') focusCamera(value1, value2);
 	else if (eventName == 'ZoomCamera') zoomCamera(value1, value2);
+	else if (eventName == 'SetCameraBop') setCameraBop(value1, value2);
 }
 
 // Sequence timeline (beats, relative to the event's strumTime):
@@ -279,17 +281,39 @@ function tryDodge()
 	}
 }
 
+function getSawMode():String
+{
+	var mode:Dynamic = getModSetting('qtSawMode');
+	return (mode != null) ? mode : 'Damage';
+}
+
+function dodgeKeyJustPressed():Bool
+{
+	var kb:Dynamic = getModSetting('qtDodgeKey');
+	if (kb == null) return keyJustPressed('accept');
+
+	var kbPressed:Bool = (kb.keyboard != null && kb.keyboard != 'NONE') ? keyboardJustPressed(kb.keyboard) : false;
+	var padPressed:Bool = (kb.gamepad != null && kb.gamepad != 'NONE') ? anyGamepadJustPressed(kb.gamepad) : false;
+	return kbPressed || padPressed;
+}
+
 function applySawHit()
 {
-	var damage:Float = 2.0 * 0.5;
-	game.health = Math.max(game.health - damage, 0);
+	var mode:String = getSawMode();
+	if (mode == 'Disabled') return;
+
+	if (mode == 'Instakill')
+		game.health = 0;
+	else
+		game.health = Math.max(game.health - 1.0, 0);
+
 	FlxG.camera.flash(0xFFff0000, 0.3);
 	game.camGame.shake(0.008, 0.3);
 }
 
 function onUpdate(elapsed:Float)
 {
-	if (dodgeActive && !dodgeUsed && (FlxG.onMobile ? false : keyJustPressed('accept')))
+	if (dodgeActive && !dodgeUsed && (FlxG.onMobile ? false : dodgeKeyJustPressed()))
 	{
 		tryDodge();
 	}
@@ -374,4 +398,34 @@ function zoomCamera(value1:String, value2:String)
 
 	var durSeconds:Float = Conductor.stepCrochet * duration / 1000;
 	cameraZoomTween = FlxTween.tween(FlxG.camera, {zoom: target}, durSeconds, {ease: resolveEase(ease)});
+}
+
+// --- SetCameraBop: periodic camera zoom pulse (see PORT_INFO.md) ---
+var bopRate:Float = 4;
+var bopOffset:Float = 0;
+var bopIntensity:Float = 1.0;
+
+function setCameraBop(value1:String, value2:String)
+{
+	var p:Array<String> = value1.split(',');
+	bopIntensity = (p.length > 0 && p[0].length > 0) ? Std.parseFloat(p[0]) : 1.0;
+	bopRate = (p.length > 1 && p[1].length > 0) ? Std.parseFloat(p[1]) : 4;
+	bopOffset = (p.length > 2 && p[2].length > 0) ? Std.parseFloat(p[2]) : 0;
+}
+
+function onBeatHit()
+{
+	if (bopRate <= 0 || bopIntensity == 1.0) return;
+
+	var beat:Int = getVar('curBeat');
+	if (Math.round((beat + bopOffset) % bopRate) != 0) return;
+
+	var bump:Float = (bopIntensity - 1.0) * game.defaultCamZoom;
+	var startZoom:Float = FlxG.camera.zoom;
+	var half:Float = (Conductor.crochet * bopRate) / 2000;
+
+	FlxTween.tween(FlxG.camera, {zoom: startZoom + bump}, half, {
+		ease: FlxEase.quadOut,
+		onComplete: function(_) FlxTween.tween(FlxG.camera, {zoom: startZoom}, half, {ease: FlxEase.quadIn})
+	});
 }

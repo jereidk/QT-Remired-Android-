@@ -121,6 +121,7 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 {
 	if (eventName == 'FocusCamera') focusCamera(value1, value2);
 	else if (eventName == 'ZoomCamera') zoomCamera(value1, value2);
+	else if (eventName == 'SetCameraBop') setCameraBop(value1, value2);
 }
 
 // --- Camera focus/zoom events, ported with real tweening (Psych's native
@@ -202,4 +203,34 @@ function zoomCamera(value1:String, value2:String)
 
 	var durSeconds:Float = Conductor.stepCrochet * duration / 1000;
 	cameraZoomTween = FlxTween.tween(FlxG.camera, {zoom: target}, durSeconds, {ease: resolveEase(ease)});
+}
+
+// --- SetCameraBop: periodic camera zoom pulse (see PORT_INFO.md) ---
+var bopRate:Float = 4;
+var bopOffset:Float = 0;
+var bopIntensity:Float = 1.0;
+
+function setCameraBop(value1:String, value2:String)
+{
+	var p:Array<String> = value1.split(',');
+	bopIntensity = (p.length > 0 && p[0].length > 0) ? Std.parseFloat(p[0]) : 1.0;
+	bopRate = (p.length > 1 && p[1].length > 0) ? Std.parseFloat(p[1]) : 4;
+	bopOffset = (p.length > 2 && p[2].length > 0) ? Std.parseFloat(p[2]) : 0;
+}
+
+function onBeatHit()
+{
+	if (bopRate <= 0 || bopIntensity == 1.0) return;
+
+	var beat:Int = getVar('curBeat');
+	if (Math.round((beat + bopOffset) % bopRate) != 0) return;
+
+	var bump:Float = (bopIntensity - 1.0) * game.defaultCamZoom;
+	var startZoom:Float = FlxG.camera.zoom;
+	var half:Float = (Conductor.crochet * bopRate) / 2000;
+
+	FlxTween.tween(FlxG.camera, {zoom: startZoom + bump}, half, {
+		ease: FlxEase.quadOut,
+		onComplete: function(_) FlxTween.tween(FlxG.camera, {zoom: startZoom}, half, {ease: FlxEase.quadIn})
+	});
 }

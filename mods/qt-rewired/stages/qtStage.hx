@@ -69,10 +69,46 @@ function onGameOver()
 	// Restore stage colors in case a future dodge-mechanic tint is added later.
 }
 
+// --- Simplified intro/outro cutscene (see PORT_INFO.md) ---
+// The original (QtTransformSongOutro.hxc) drove a whole QT->robot transform
+// character animation with a bus sprite and camera choreography. This is a
+// scaled-down stand-in - fade to black, spotlight, the original "qtsfx" cue,
+// hold, fade back - using only assets already on this stage, played once per
+// song completion (matching the original's hasPlayedOutro guard).
+var introCutscenePlayed:Bool = false;
+
+function onEndSong():Dynamic
+{
+	if (introCutscenePlayed) return null;
+	introCutscenePlayed = true;
+	playIntroCutscene();
+	return Function_Stop;
+}
+
+function playIntroCutscene()
+{
+	FlxTween.tween(blackScreen, {alpha: 1}, 1.0, {ease: FlxEase.quadOut});
+	FlxTween.tween(spotLight, {alpha: 1}, 1.0, {
+		ease: FlxEase.quadOut,
+		onComplete: function(_)
+		{
+			FlxG.sound.play(Paths.sound('qtsfx'));
+			new FlxTimer().start(3.5, function(_)
+			{
+				FlxTween.tween(blackScreen, {alpha: 0}, 1.0);
+				FlxTween.tween(spotLight, {alpha: 0}, 1.0, {
+					onComplete: function(_) game.endSong()
+				});
+			});
+		}
+	});
+}
+
 function onEvent(eventName:String, value1:String, value2:String, strumTime:Float)
 {
 	if (eventName == 'FocusCamera') focusCamera(value1, value2);
 	else if (eventName == 'ZoomCamera') zoomCamera(value1, value2);
+	else if (eventName == 'SetCameraBop') setCameraBop(value1, value2);
 }
 
 // --- Camera focus/zoom events, ported with real tweening (Psych's native
@@ -154,4 +190,34 @@ function zoomCamera(value1:String, value2:String)
 
 	var durSeconds:Float = Conductor.stepCrochet * duration / 1000;
 	cameraZoomTween = FlxTween.tween(FlxG.camera, {zoom: target}, durSeconds, {ease: resolveEase(ease)});
+}
+
+// --- SetCameraBop: periodic camera zoom pulse (see PORT_INFO.md) ---
+var bopRate:Float = 4;
+var bopOffset:Float = 0;
+var bopIntensity:Float = 1.0;
+
+function setCameraBop(value1:String, value2:String)
+{
+	var p:Array<String> = value1.split(',');
+	bopIntensity = (p.length > 0 && p[0].length > 0) ? Std.parseFloat(p[0]) : 1.0;
+	bopRate = (p.length > 1 && p[1].length > 0) ? Std.parseFloat(p[1]) : 4;
+	bopOffset = (p.length > 2 && p[2].length > 0) ? Std.parseFloat(p[2]) : 0;
+}
+
+function onBeatHit()
+{
+	if (bopRate <= 0 || bopIntensity == 1.0) return;
+
+	var beat:Int = getVar('curBeat');
+	if (Math.round((beat + bopOffset) % bopRate) != 0) return;
+
+	var bump:Float = (bopIntensity - 1.0) * game.defaultCamZoom;
+	var startZoom:Float = FlxG.camera.zoom;
+	var half:Float = (Conductor.crochet * bopRate) / 2000;
+
+	FlxTween.tween(FlxG.camera, {zoom: startZoom + bump}, half, {
+		ease: FlxEase.quadOut,
+		onComplete: function(_) FlxTween.tween(FlxG.camera, {zoom: startZoom}, half, {ease: FlxEase.quadIn})
+	});
 }
