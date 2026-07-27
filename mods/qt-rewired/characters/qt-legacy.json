@@ -1,0 +1,54 @@
+{
+	"image": "2021/qt",
+	"scale": 1,
+	"sing_duration": 6,
+	"healthicon": "qt-legacy",
+	"position": [0, 0],
+	"camera_position": [50, 50],
+	"flip_x": false,
+	"no_antialiasing": false,
+	"healthbar_colors": [255, 105, 180],
+	"vocals_file": "qt-legacy",
+	"animations": [
+		{
+			"anim": "idle",
+			"name": "Final_Idle",
+			"fps": 18,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "singLEFT",
+			"name": "Final_Left",
+			"fps": 14,
+			"loop": false,
+			"indices": [],
+			"offsets": [-68, 19]
+		},
+		{
+			"anim": "singDOWN",
+			"name": "Final_Down",
+			"fps": 14,
+			"loop": false,
+			"indices": [],
+			"offsets": [22, 77]
+		},
+		{
+			"anim": "singUP",
+			"name": "Final_Up",
+			"fps": 14,
+			"loop": false,
+			"indices": [],
+			"offsets": [22, 35]
+		},
+		{
+			"anim": "singRIGHT",
+			"name": "Final_Right",
+			"fps": 14,
+			"loop": false,
+			"indices": [],
+			"offsets": [-14, 39]
+		}
+	]
+}

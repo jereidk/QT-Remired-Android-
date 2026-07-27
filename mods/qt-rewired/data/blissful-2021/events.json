@@ -1,0 +1,14 @@
+{
+  "song": {
+    "song": "Blissful 2021",
+    "notes": [],
+    "events": [],
+    "bpm": 138.0,
+    "needsVoices": true,
+    "speed": 2.4,
+    "player1": "bf-qt",
+    "player2": "qt-legacy",
+    "gfVersion": "gf-qt",
+    "stage": "qtStage2021"
+  }
+}

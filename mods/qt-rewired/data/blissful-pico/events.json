@@ -1,0 +1,14 @@
+{
+  "song": {
+    "song": "Blissful Pico",
+    "notes": [],
+    "events": [],
+    "bpm": 138.0,
+    "needsVoices": true,
+    "speed": 2.5,
+    "player1": "pico-qt",
+    "player2": "qt",
+    "gfVersion": "gf-qt",
+    "stage": "qtStagePico"
+  }
+}
