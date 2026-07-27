@@ -87,3 +87,93 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    escenario real) y cutscene de intro.
 4. Keybind configurable para esquivar + modos instakill/disabled desde
    opciones del mod.
+
+## Investigación: variantes erect/pico/legacy, `caramella`, sierra doble/triple
+
+Detalle de lo que hace falta para el punto 2 de arriba, investigado contra
+`data-src/` (metadata/charts crudos del mod original) y contra
+`FunkinCrew/Funkin'` (clonado aparte para confirmar semánticas).
+
+### Variantes por canción (metadata real)
+
+| Canción-variante | `player`/`opponent`/`girlfriend` | `instrumental` | `stage` | dificultades | BPM |
+|---|---|---|---|---|---|
+| Blissful (base) | bf-qt / qt / gf-qt | — | qtStage | easy,normal,hard | 138 |
+| Blissful-erect | bf-qt / qt / **gf** (vanilla, no gf-qt) | `erect` | **qtStageCityErect** | erect,nightmare | 152 |
+| Blissful-pico | **pico-qt** / qt / **nene-qt** | `pico` | qtStagePico | easy,normal,hard | 138 |
+| Blissful-2021 | bf-qt / **qt-legacy** / gf-qt | — | qtStage2021 | easy,normal,hard | 138 |
+| Obliterated (base) | bf-qt / kb / gf-qt | — | qtStageKiller | easy,normal,hard | 245 (variable) |
+| Obliterated-erect | bf-qt / kb / gf-qt (voces `bf-erect`/`kb-erect`) | `erect` | **qtStageObliteratedErect** | erect,nightmare | 152→160 (variable) |
+| Obliterated-legacy | bf-qt / kb / gf-qt | `legacy` | qtStageKiller (mismo stage) | easy,normal,hard | 245 (variable) |
+
+Cada variante es efectivamente **una canción nueva** para Psych (chart +
+personajes + stage propios), no un simple flag — así que portarlas es repetir
+el mismo trabajo hecho para Blissful/Obliterated base, una por una. La única
+que reutiliza el stage ya portado es Obliterated-legacy (mismo `qtStageKiller`).
+
+Anchors de personaje + `cameraZoom` de los stages nuevos (de
+`data-src/stages/*.json`, mismo schema `StageFile` ya usado):
+- `qtStagePico`: bf [1025,848] cam[-226,-110] · dad [-29,864] cam[330,-100] ·
+  gf [495,786.5] cam[35,17] · zoom 0.69 · 23 props.
+- `qtStageCityErect`: dad [305,1289] cam[235,-88] · bf [1330,1285]
+  cam[-290,-150] · gf [820,1164] cam[12,30] · zoom 0.585 · 16 props.
+- `qtStageObliteratedErect`: igual que CityErect pero dad en [364,1282]
+  cam[255,-78] · zoom 0.585 · 16 props.
+- `qtStage2021`: bf [989.5,885] cam[-100,-100] · dad [335,885] cam[150,-100] ·
+  gf [751.5,787] cam[0,0] · zoom 0.92125 · solo 3 props (escenario simple).
+
+### Note kind `caramella`
+
+No es un flag separado del engine: en el chart de Blissful-erect
+(`data-src/songs/blissful/blissful-chart-erect.json`) cada nota tiene un
+campo `"k"` (kind) igual a `null`, `"noanim"` o `"caramella"` — **73 notas**
+etiquetadas `caramella` entre t=189.9s y t=213.6s (la sección
+"caramelldansen" de la canción).
+
+En el motor original (`scripts/notekinds/caramella.hxc`) esto era una clase
+`NoteKind` que solo asigna un sufijo de animación — funcionalmente idéntico
+al mecanismo de "Alt Animation" que Psych YA trae de fábrica
+(`Note.hx` → `animSuffix = '-alt'`). Confirmado que **no requiere tocar
+código fuente**: `animSuffix` es un `public var` en `Note.hx`, así que basta
+un archivo de note-type data-driven:
+
+```
+// mods/qt-rewired/custom_notetypes/caramella.txt
+animSuffix: '-caramella'
+```
+
+(aplicado automáticamente por `backend/NoteTypesConfig.hx` cuando
+`note.noteType == 'caramella'`, sin editar `Note.hx`/`PlayState.hx`.)
+
+Para que la animación exista hay que usar el atlas
+`characters/BF/bf-qt-erect` (ya copiado a `images/`, sin usar todavía) en un
+character JSON específico de la variante erect (`bf-qt-erect.json`, NO el
+`bf-qt.json` actual que apunta al sprite vanilla de BF). Ese atlas SÍ trae
+animaciones base completas y las variantes `-caramella`:
+`export/BF idle dance` (idle), `export/left alt`/`export/right alt`
+(singLEFT/singRIGHT), `alt export/down alt`/`alt export/up alt`
+(singDOWN/singUP) — osea que a diferencia de `bf-qt` (solo animaciones
+extra), `bf-qt-erect` es un atlas autosuficiente para toda la variante erect.
+
+### Sierra doble/triple
+
+La variante base de Obliterated solo usa `num_sawblades: 1` (confirmado:
+las 10 entradas `sawKB` del chart base son todas `1`). La variante
+**Obliterated-erect** sí usa 1 y 2 (28 eventos `sawKB`, mezcla de `1`/`2`,
+sin `3` en este chart en particular). El schema real del evento
+(`scripts/events/SawbladeEvent.hxc`) define 3 secuencias:
+
+- **Single** (ya portada): alert(beat 0) → attack(beat 1) → attack-1(beat 2).
+- **Double**: alert(beat 0) → attack "attack-2-1"(beat 1, 1er golpe) →
+  attack "attack-2-1" otra vez(beat 2, 2do golpe) → attack-2-2(beat 3) — es
+  decir, **dos ventanas de esquive separadas**, una por cada golpe, cada una
+  necesita su propio input de esquive independiente.
+- **Triple**: mismo patrón pero 3 golpes espaciados por beat, usando frames
+  `attack-2-1`/`attack-2-2` repetidos.
+
+Portar esto a `qtStageKiller.hx` implica generalizar `startSawSequence()`
+(ya escrita para single) a un loop de N golpes en vez de la secuencia fija
+de 2 timers actual, y usar los símbolos `export real/doubleAlert 1/2` y
+`export real/doubleAttack 1/2` ya presentes en el atlas
+`saw_mechanic/warning` (confirmado en el JSON, no copiados/usados todavía)
+en lugar de `export real/alert 1/2`+`export real/attack`.
