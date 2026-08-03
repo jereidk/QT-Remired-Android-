@@ -195,6 +195,13 @@ function playIntroCutscene()
 	setupSkipPrompt();
 	activeCutsceneFinish = finishIntroCutscene;
 
+	// GF bops along at 103 BPM during the cutscene - the original drives this
+	// off a secondary Conductor synced to introSong-pico; simplified here to
+	// a fixed-interval repeating timer since the main Conductor isn't
+	// running yet during this pre-song cutscene. 18 loops covers ~10.5s of
+	// the ~11s cutscene.
+	scheduleCutsceneTimer(60 / 103, function(_) { if (game.gf != null) game.gf.dance(); }, 18);
+
 	if (game.dad.atlas != null)
 	{
 		game.dad.atlas.anim.addByFrameLabel('still', 'hi cutie', 24, false);
@@ -326,9 +333,9 @@ var canSkipCutscene:Bool = false;
 var cutsceneSkipped:Bool = false;
 var activeCutsceneFinish:Void->Void;
 
-function scheduleCutsceneTimer(time:Float, cb:Float->Void):FlxTimer
+function scheduleCutsceneTimer(time:Float, cb:Float->Void, loops:Int = 1):FlxTimer
 {
-	var t:FlxTimer = new FlxTimer().start(time, cb);
+	var t:FlxTimer = new FlxTimer().start(time, cb, loops);
 	cutsceneTimers.push(t);
 	return t;
 }

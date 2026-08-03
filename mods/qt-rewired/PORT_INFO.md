@@ -349,10 +349,13 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
     superpuesto, posicionado en `bf.x/bf.y` + el offset original
     `(55, 16.87)` — una aproximación razonable pero no una réplica exacta de
     cómo se vería con el rig Animate real del motor moderno (proporciones/
-    pivote pueden diferir levemente). Tampoco se replicó el bop de GF
-    sincronizado a los beats del `introSong-pico` (103 BPM) que tiene el
-    original vía un `Conductor` secundario — GF se queda en su pose idle
-    normal durante estos ~11s.
+    pivote pueden diferir levemente; no hay margen real para mejorar esto
+    sin poder ver el resultado, ya que ya usa el offset original tal cual).
+    **El bop de GF sí se portó**: 18 llamadas a `gf.dance()` cada
+    `60/103` segundos (103 BPM, igual que el original) vía
+    `scheduleCutsceneTimer`, en vez del `Conductor` secundario del original
+    (el `Conductor` principal de Psych todavía no corre durante esta
+    cutscene previa a la canción).
 11. **Apertura de Obliterated (base/legacy) sin la pose de BF congelada.**
     Se portó el fundido desde negro (~5s), el snap de cámara (zoom 1.2,
     posición 1100,655) y saltar directo a la canción (`game.skipCountdown`,
@@ -434,7 +437,9 @@ base/legacy) ya están portadas. Lo que queda:
    requeriría confirmar si `FlxCamera` expone algún método tipo `stopFX()`
    en la versión de Flixel de este proyecto.
 3. Overlay de la pose `introbl` de Blissful-pico más preciso (limitación 10)
-   y/o bop de GF sincronizado a los beats de `introSong-pico`.
+   — el bop de GF ya está portado. Sin verificación visual posible en este
+   entorno, no queda mucho margen concreto de mejora más allá de lo ya
+   hecho.
 4. Separar un "zoom base" propio del bop en las 6 stages para que
    `SetCameraBop` no tenga que pausarse mientras un `ZoomCamera` está activo
    (limitación 7 — hoy ambos escriben directo a `FlxG.camera.zoom`).
