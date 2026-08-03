@@ -82,9 +82,12 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   literalmente todo lo que hace el evento original (no cambia de escenario).
 - **`blackIn`** (Obliterated/Obliterated-legacy, último evento de ambos
   charts): `blackScreen.alpha = 1` instantáneo en `qtStageKiller.hx` — igual
-  de simple en el original. Ver limitación 4 sobre por qué
-  `cutsceneVideo`/`fadeStart` (los otros dos eventos "de video" del mismo
-  chart) no se portaron.
+  de simple en el original.
+- **`fadeStart`/`cutsceneVideo`/`cutsceneVideoOut`** (Obliterated/
+  Obliterated-legacy): el video real (`videos/cutscene.mp4`) reproducido
+  SUPERPUESTO sobre el gameplay en vivo, portado usando `hxCodec` directo
+  desde HScript — ver limitación 4 para el detalle técnico y el riesgo
+  aceptado.
 - **Keybind de esquive configurable + modos instakill/disabled**
   (`data/settings.json`, un archivo de opciones de mod estándar de Psych):
   el menú de "Mod Settings" del juego ahora tiene "Dodge Key" (rebindeable,
@@ -274,21 +277,38 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    todo lo que hacía el evento original — no mueve ni cambia ningún otro
    prop). `blackIn` también está portado (`qtStageKiller.hx`, es el último
    evento de ambos charts — un simple `blackScreen.alpha = 1` instantáneo, ni
-   siquiera tenía tween en el original). **`cutsceneVideo`/`cutsceneVideoOut`/
-   `fadeStart` NO se portaron y quedan como limitación arquitectónica, no
-   como pendiente trivial**: el original reproduce un video real
-   (`videos/cutscene.mp4`, vía `FunkinVideoSprite`) SUPERPUESTO sobre el
-   gameplay en vivo mientras las notas siguen cayendo (con los misses
-   deshabilitados durante el video). Psych sí trae soporte de video nativo
-   (`hxCodec`, ver `PlayState.startVideo()`), pero está diseñado únicamente
-   para tomar la pantalla completa antes o después de una canción — no hay
-   forma limpia de superponer un video como sprite dentro del gameplay activo
-   sin acceder directamente a las clases de `hxCodec` desde HScript, algo que
-   ningún otro script de este mod hace y que no se pudo verificar sin poder
-   compilar/ejecutar el juego en este entorno. Implementarlo a medias
-   (portar solo el fundido a negro de `fadeStart` sin el video real) dejaría
-   la pantalla en negro permanentemente en mitad de la canción, que es peor
-   que no portarlo. Ver "Próximos pasos".
+   siquiera tenía tween en el original).
+   **`cutsceneVideo`/`cutsceneVideoOut`/`fadeStart` SÍ se portaron**, usando
+   `hxcodec.flixel.FlxVideo` importado directo en `qtStageKiller.hx`
+   (`import hxcodec.flixel.FlxVideo;`, igual que ya se hacía con
+   `openfl.display.BlendMode` — HScript soporta `import` nativo de cualquier
+   clase compilada, no hace falta que Psych la registre explícitamente).
+   Se clonó el código fuente real de `hxCodec` (pineado a `"main"` en
+   `hmm.json`, `haxelib.json` reporta versión `3.0.2`) para confirmar la API
+   exacta antes de escribir esto: `FlxVideo extends Video extends Bitmap` (un
+   `Bitmap` de OpenFL puro, no un `FlxSprite` — se auto-agrega al stage vía
+   `FlxG.addChildBelowMouse(this)` en el constructor, así que queda por
+   encima de ambas cámaras del juego sin necesitar `game.add()`), con
+   `play(location, loop)`/`pause()`/`stop()`/`onEndReached` tal cual se
+   usan acá. `Paths.video('cutscene')` resuelve a
+   `mods/qt-rewired/videos/cutscene.mp4` (copiado del paquete original).
+   `fadeStart` atenúa el HUD (`fadeHud`) y funde `blackScreenVideo` a negro
+   detrás del video; `cutsceneVideo` reproduce el clip y atenúa
+   `game.playerStrums` (a 0.67, notas visibles pero discretas, gameplay
+   sigue activo — igual que el original); `cutsceneVideoOut` restaura todo.
+   **Riesgo aceptado explícitamente**: al ser un `import` de nivel superior
+   en un archivo compartido por 2 de las 7 canciones (`qtStageKiller.hx`,
+   usado por Obliterated base y legacy), si `hxCodec` no resolviera en el
+   build real (versión distinta, plataforma sin soporte, semántica de
+   `import` de HScript distinta a la del compilador principal) rompería el
+   script entero, no solo el video — no se pudo compilar/ejecutar el juego
+   en este entorno para verificarlo en la práctica. El usuario decidió
+   dejarlo así de todas formas, dado que el repo apunta a Android/mobile y
+   `Project.xml` define `VIDEOS_ALLOWED` para builds mobile/desktop. **Lo
+   que NO se portó**: la suspensión del ghost-tap-miss durante el video
+   (`isOnVideo` en el original) — Psych llama `noteMissPress` DESPUÉS de
+   aplicar la penalización del miss, así que no hay forma de cancelarla
+   desde el stage script.
 5. **Difficulties no estándar remapeadas a easy/normal/hard.** El mod
    original usa nombres de dificultad propios por variante (`erect`/
    `nightmare` en vez de las 3 estándar); para mantener consistencia con el
@@ -365,18 +385,18 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
     que dura, y motivaba otro overlay standalone (como el de la limitación
     10) para un beneficio visual marginal.
 12. **Obliterated-erect NO tiene su apertura/cinemática de mitad de canción
-    portada — es una limitación arquitectónica, no un pendiente simple.** Al
-    investigar la apertura encontré que está enredada con un sistema mucho
-    más grande: DOS videos incrustados (`obliteratedErectMid.mp4`,
-    `obliteratedErectEdit.mp4`, vía `FunkinVideoSprite`, igual que el
-    `cutsceneVideo` de Obliterated base — ver limitación 4), shaders de
-    color (`AdjustColorShader`/`DropShadowShader` sobre dad), y 4 fundidos
-    de cámara con cambio de layout en momentos específicos
+    portada.** Ya no es un problema de factibilidad — el `hxCodec`/`FlxVideo`
+    usado en `cutsceneVideo` de Obliterated base (limitación 4) confirma que
+    reproducir video superpuesto desde HScript funciona — pero esta cinemática
+    es un sistema bastante más grande, sin decidir todavía si vale la pena
+    portarlo entero: DOS videos incrustados (`obliteratedErectMid.mp4`,
+    `obliteratedErectEdit.mp4`, vía `FunkinVideoSprite` en el original), más
+    shaders de color (`AdjustColorShader`/`DropShadowShader` sobre dad), más 4
+    fundidos de cámara con cambio de layout en momentos específicos
     (`camFade2/3/4Triggered`, `fadeOut1/2Triggered`, `layoutTriggered`, en
     t≈147.9s/148.3s/152.2s/152.3s/178.5s/179.2s/189.6s) que llevan al
-    personaje a un estado "tsundere" después. Portar solo el fundido a negro
-    inicial sin el resto dejaría una apertura sin ningún pago visual —
-    mismo criterio que ya se aplicó a `cutsceneVideo`/`fadeStart`.
+    personaje a un estado "tsundere" después. Portar solo el video sin los
+    shaders/fundidos de cámara dejaría una apertura visualmente incompleta.
 13. **HUD estilo "Kade Engine 2021" de Blissful-2021, portado sin los
     toggles avanzados ni el ranking con colores.** Después de leer el código
     fuente real de Psych (`PlayState.popUpScore`/`goodNoteHit`) confirmé que
@@ -438,19 +458,17 @@ base/legacy) ya están portadas. Lo que queda:
    — el bop de GF ya está portado. Sin verificación visual posible en este
    entorno, no queda mucho margen concreto de mejora más allá de lo ya
    hecho.
-4. `cutsceneVideo`/`cutsceneVideoOut`/`fadeStart` de Obliterated (video
-   superpuesto en gameplay en vivo) — ver limitación 4 sobre por qué esto es
-   una limitación arquitectónica de Psych, no un simple pendiente; requeriría
-   experimentar con las clases de `hxCodec` directamente desde HScript (sin
-   poder compilar/probar en este entorno) y probablemente solo seria seguro
-   de intentar con acceso a un build real del juego para verificar.
+4. `cutsceneVideo`/`cutsceneVideoOut`/`fadeStart` de Obliterated — **ya
+   portado** (ver "Estado actual" y limitación 4), usando `hxCodec`/
+   `FlxVideo` directo desde HScript con el riesgo de import aceptado
+   explícitamente por decisión del usuario.
 5. La apertura/cinemática de mitad de canción de Obliterated-erect (dos
    videos incrustados + shaders de color + 4 fundidos de cámara con cambio
-   de layout — ver limitación 12), misma limitación arquitectónica que el
-   punto 4. Antes de intentar cualquiera de los dos puntos de video, valdría
-   la pena confirmar si las clases de `hxCodec` son siquiera alcanzables
-   desde HScript en esta versión de Psych — eso determina si esto es viable
-   algún día o es un límite duro del engine.
+   de layout — ver limitación 12). Ya no bloqueada por dudas de
+   factibilidad (el punto 4 confirmó que `hxCodec`/`FlxVideo` funciona desde
+   HScript) — lo que falta acá es simplemente el volumen de trabajo
+   (2 videos + shaders + 4 fundidos con cambio de layout), no un límite del
+   engine.
 6. La pose congelada `intro` de BF en la apertura de Obliterated base/legacy
    (limitación 11) y la pose `intro-erect` de KB en Obliterated-erect (atlas
    separado `kb_export/kb_erect_intro`, `animType: "symbol"`) — ambas

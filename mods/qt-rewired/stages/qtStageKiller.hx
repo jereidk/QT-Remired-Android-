@@ -1,4 +1,5 @@
 import openfl.display.BlendMode;
+import hxcodec.flixel.FlxVideo;
 
 // --- Background layers ---
 var tvStaticLeft:FlxSprite;
@@ -17,6 +18,19 @@ var lightOverlay:FlxSprite;
 var blackScreen:FlxSprite;
 var spotLight:FlxSprite;
 var redScreen:FlxSprite;
+
+// --- Mid-song video cutscene, ported from obliterated.hxc's fadeStart/
+// cutsceneVideo/cutsceneVideoOut chart events (see PORT_INFO.md). Confirmed
+// via hxCodec's own source (pinned to v3.0.2 in hmm.json) that FlxVideo is a
+// real, usable class here - it's a raw OpenFL Bitmap added directly to the
+// stage (not a normal FlxSprite/game.add()), with play()/pause()/stop()/
+// onEndReached matching what the original's FunkinVideoSprite wrapper
+// exposed. Ghost-tap miss suppression while the video plays (isOnVideo in
+// the original) isn't ported - Psych's noteMissPress fires after the miss
+// penalty already applied, so there's no clean way to cancel it from here.
+var blackScreenVideo:FlxSprite;
+var midVideo:FlxVideo;
+var isOnVideo:Bool = false;
 
 // --- Sawblade dodge mechanic ---
 var sawSprite:FlxAnimate;
@@ -160,6 +174,26 @@ function onCreatePost()
 		sawSprite.y = game.dad.getGraphicMidpoint().y - 275;
 	}
 	game.add(sawSprite);
+
+	blackScreenVideo = new FlxSprite(-649, -42);
+	blackScreenVideo.makeGraphic(2589, 1306, FlxColor.BLACK);
+	blackScreenVideo.alpha = 0;
+	blackScreenVideo.cameras = [game.camHUD];
+	game.add(blackScreenVideo);
+
+	midVideo = new FlxVideo();
+	midVideo.autoResize = false;
+	midVideo.visible = false;
+	midVideo.x = 0;
+	midVideo.y = 0;
+	midVideo.width = FlxG.width;
+	midVideo.height = FlxG.height;
+	midVideo.onEndReached.add(function()
+	{
+		midVideo.stop();
+		midVideo.visible = false;
+		isOnVideo = false;
+	});
 }
 
 function onEvent(eventName:String, value1:String, value2:String, strumTime:Float)
@@ -176,6 +210,52 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 	else if (eventName == 'SetCameraBop') setCameraBop(value1, value2);
 	else if (eventName == 'changeStage') changeStageColor(value1);
 	else if (eventName == 'blackIn') blackScreen.alpha = 1;
+	else if (eventName == 'fadeStart')
+	{
+		fadeHud(0, 3);
+		FlxTween.tween(blackScreenVideo, {alpha: 1}, 3, {ease: FlxEase.quadInOut});
+	}
+	else if (eventName == 'cutsceneVideo')
+	{
+		isOnVideo = true;
+		midVideo.visible = true;
+		midVideo.play(Paths.video('cutscene'));
+		fadePlayerStrums(0.67, 2);
+	}
+	else if (eventName == 'cutsceneVideoOut')
+	{
+		isOnVideo = false;
+		midVideo.stop();
+		midVideo.visible = false;
+		fadeHud(1, 0);
+		blackScreenVideo.alpha = 0;
+		fadePlayerStrums(1, 1);
+	}
+}
+
+function fadePlayerStrums(target:Float, duration:Float)
+{
+	for (strum in game.playerStrums.members)
+		FlxTween.tween(strum, {alpha: target}, duration, {ease: FlxEase.quadInOut});
+}
+
+// HUD dimming for the mid-song video cutscene (fadeStart/cutsceneVideoOut
+// above) - dims health bar/score/opponent's side, matching the original's
+// hudAlpha(), while leaving the player's own strumline/notes fully visible
+// so gameplay stays playable during the video.
+function fadeHud(target:Float, duration:Float)
+{
+	var targets:Array<Dynamic> = [game.healthBar, game.scoreTxt, game.iconP1, game.iconP2];
+	for (t in game.opponentStrums.members) targets.push(t);
+
+	if (duration <= 0)
+	{
+		for (t in targets) t.alpha = target;
+	}
+	else
+	{
+		for (t in targets) FlxTween.tween(t, {alpha: target}, duration, {ease: FlxEase.quadInOut});
+	}
 }
 
 // Recolors tvLights/lightOverlay to match the chart's "changeStage" cues
