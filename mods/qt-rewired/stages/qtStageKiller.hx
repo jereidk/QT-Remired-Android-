@@ -402,11 +402,39 @@ function tryDodge()
 	if (Math.abs(timeDiff) <= dodgeWindowEnd - dodgeWindowStart)
 	{
 		game.health += 0.2;
+		showDodgedPopup();
 	}
 	else
 	{
 		dodgeUsed = false; // too early, doesn't count
 	}
+}
+
+// "DODGED!" popup on a successful dodge, ported from
+// SawbladeAndDodgeModule.hxc's playState.popUpScore("dodged") - that call
+// goes through the original engine's real judgement-popup pipeline, which
+// Psych's equivalent (PlayState.popUpScore) is tightly coupled to actual
+// note hits/combo/accuracy tracking, so hooking into it for a non-note event
+// risked messing with scoring for no real benefit. This is a standalone
+// sprite instead, positioned/animated like Psych's own rating popups
+// (PlayState.hx's popUpScore: placement = FlxG.width * 0.35, screenCenter()
+// then offset) - floats up and fades out over 0.6s.
+function showDodgedPopup()
+{
+	var popup:FlxSprite = new FlxSprite();
+	popup.loadGraphic(Paths.image('ui/popup/funkin/dodged'));
+	popup.scrollFactor.set();
+	popup.cameras = [game.camHUD];
+	popup.screenCenter();
+	popup.x = (FlxG.width * 0.35) - (popup.width / 2);
+	popup.y -= 60;
+	popup.zIndex = 950;
+	game.add(popup);
+
+	FlxTween.tween(popup, {y: popup.y - 100, alpha: 0}, 0.6, {
+		ease: FlxEase.quadOut,
+		onComplete: function(_) game.remove(popup)
+	});
 }
 
 function getSawMode():String

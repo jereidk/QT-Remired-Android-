@@ -543,11 +543,34 @@ function tryDodge()
 	if (Math.abs(timeDiff) <= dodgeWindowEnd - dodgeWindowStart)
 	{
 		game.health += 0.2;
+		showDodgedPopup();
 	}
 	else
 	{
 		dodgeUsed = false; // too early, doesn't count
 	}
+}
+
+// "DODGED!" popup on a successful dodge - see qtStageKiller.hx for the full
+// rationale (ported from SawbladeAndDodgeModule.hxc's popUpScore("dodged"),
+// implemented as a standalone sprite instead of hooking Psych's real
+// judgement-popup pipeline).
+function showDodgedPopup()
+{
+	var popup:FlxSprite = new FlxSprite();
+	popup.loadGraphic(Paths.image('ui/popup/funkin/dodged'));
+	popup.scrollFactor.set();
+	popup.cameras = [game.camHUD];
+	popup.screenCenter();
+	popup.x = (FlxG.width * 0.35) - (popup.width / 2);
+	popup.y -= 60;
+	popup.zIndex = 950;
+	game.add(popup);
+
+	FlxTween.tween(popup, {y: popup.y - 100, alpha: 0}, 0.6, {
+		ease: FlxEase.quadOut,
+		onComplete: function(_) game.remove(popup)
+	});
 }
 
 function getSawMode():String

@@ -62,6 +62,34 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   cada canción para poder reusar el mismo personaje en varias variantes).
 - `weeks/QT.json` — las 7 canciones/variantes aparecen en Freeplay y Story
   Mode.
+- **`scripts/gameOverQuotes.hx`** (script global, no atado a ningún stage
+  particular — se carga para las 7 canciones vía el mismo mecanismo de
+  `scripts/` que usa Psych para cualquier mod, `Mods.directoriesWithFile(...,
+  'scripts/')` en `PlayState.hx`). Ported desde `GameOverSubtitles.hxc`: al
+  morir, el boyfriend actual (`bf-qt` o `pico-qt`, los únicos dos que usa
+  este mod) dice una línea de voz al azar (`sounds/qtgameover/english/...`,
+  7 líneas para bf-qt y 6 para pico-qt) con su subtítulo correspondiente,
+  usando el hook nativo `onGameOverStart` de Psych (`callOnScripts` desde
+  `substates/GameOverSubstate.hx`, confirmado leyendo el código fuente real
+  de Psych) y `GameOverSubstate.instance.add()` para mostrar el texto sobre
+  la pantalla de Game Over. Solo se portaron las líneas en inglés (mismo
+  criterio ya aplicado a los subtítulos de Blissful-erect — limitación 8);
+  el modelo/animaciones de muerte del personaje se dejaron como el `bf-dead`
+  vanilla de Psych en vez de un death-pose propio de QT (ese arte no forma
+  parte de lo ya copiado a este mod). La duración en pantalla de cada línea
+  es la duración fija de sus `.srt` (en `data-src/subtitles/`, solo
+  referencia) en vez de trackear la posición real de reproducción, mismo
+  criterio que `showSubtitle()` en los stages.
+- **Popup "DODGED!"** al esquivar una sierra con éxito (`qtStageKiller.hx`/
+  `qtStageObliteratedErect.hx`'s `tryDodge()`), ported desde
+  `SawbladeAndDodgeModule.hxc`'s `playState.popUpScore("dodged")`. Implementado
+  como un sprite standalone (`images/ui/popup/funkin/dodged.png`) en vez de
+  enganchar el pipeline real de popups de juicio de Psych (`PlayState.
+  popUpScore`), que está atado a combo/precisión de notas reales — usarlo
+  para un evento que no es una nota real arriesgaba romper esas cuentas sin
+  necesidad. Posicionado/animado igual que los popups nativos de Psych
+  (`placement = FlxG.width * 0.35`, `screenCenter()` + offset, ver
+  `PlayState.hx:popUpScore`): sube y se desvanece en 0.6s.
 - **Eventos de cámara `FocusCamera`/`ZoomCamera` con tween real** (no el
   salto instantáneo del evento nativo "Camera Follow Pos"/"Add Camera Zoom"
   de Psych). Cada uno de los 6 stages implementa `focusCamera()`/
@@ -490,6 +518,47 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
     entorno. Es una ventana angosta ya que los fundidos ocurren sobre todo
     cerca del final de cada cutscene, cuando ya queda poca razón para
     saltar.
+15. **Sistemas del original fuera del alcance de este port, por requerir
+    tocar `source/` (no solo la carpeta de mod) o no tener ningún
+    equivalente en Psych.** Encontrados al revisar sistemáticamente qué
+    quedaba del paquete original sin ni siquiera documentar:
+    - **Note skins propios por variante** (`data/notestyles/funkin-qt-2021`/
+      `funkin-qt-dodge`) — en Psych el skin de notas es una preferencia
+      GLOBAL del jugador (`ClientPrefs.data.noteSkin`, confirmado en
+      `source/objects/Note.hx`), no algo que una canción/mod pueda forzar
+      sin tocar `source/` (y afectaría a las notas de cualquier otro mod
+      también). Se usan las notas default de Psych.
+    - **Sticker packs** (`data/stickerpacks/*.json`) — sistema de
+      "coleccionables" exclusivo del motor moderno, Psych 0.7.3 no tiene
+      nada parecido.
+    - **Álbum roll y iconos pixel-art propios de Freeplay**
+      (`data/ui/freeplay/albums/*.json`, `images/freeplay/icons/*pixel*`) —
+      Freeplay en Psych ya muestra los healthicons ya portados de cada
+      personaje (`source/states/FreeplayState.hx` usa el mismo `HealthIcon`
+      que el gameplay), así que Freeplay ya funciona correctamente — esto es
+      una variante más chica/distinta del ícono, cosmético, no una feature
+      faltante.
+    - **Clases de sprite/UI del menú** (`RetrySprite`/`SpeakerSprite`/
+      `BusSprite`/`QtPlushMenuButton`) — un botón de "Retry" con estilo Pico,
+      un prop de altavoz, un prop de bus y un easter egg del menú principal.
+      Ninguna se usa desde un stage/canción — viven en pantallas de menú
+      compartidas (`FreeplayState`/menú principal), que están en `source/`,
+      no en la carpeta de mod.
+    - **Cápsula animada de Story Menu** (`data/levels/QTWeek.json`'s
+      `props` — QT/BF/GF con animaciones idle/confirm en la lista de
+      semanas) — distinta del `MenuCharacter` que ya se portó (limitación 6,
+      el que aparece DESPUÉS de entrar a la semana). Psych arma esa lista
+      con un gráfico estático por semana, no con props animados por
+      personaje; portarlo bien requeriría tocar `StoryMenuState.hx`.
+    - **`MissesExceptionsModule.hxc`** (suprime el ghost-tap-miss mientras
+      BF juega ciertas animaciones) — mismo límite ya documentado en la
+      limitación 4: `noteMissPress` de Psych corre después de aplicar la
+      penalización, no hay forma de cancelarla desde HScript.
+    - Lo que SÍ se rescató de esta revisión y ya está portado (ver "Estado
+      actual"): las citas de voz + subtítulo al morir
+      (`scripts/gameOverQuotes.hx`, desde `GameOverSubtitles.hxc`) y el
+      popup "DODGED!" al esquivar (desde
+      `SawbladeAndDodgeModule.hxc`).
 
 ## Assets de origen
 
