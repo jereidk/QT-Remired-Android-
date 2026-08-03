@@ -1,6 +1,7 @@
 import openfl.display.BlendMode;
 import hxcodec.flixel.FlxVideo;
 import shaders.ColorSwap;
+import substates.GameOverSubstate;
 
 // --- Mid-song cinematic (two videos + camera/HUD fades + layout change),
 // ported from obliterated-erect.hxc's onSongStart/onStepHit/onUpdate. Uses
@@ -595,7 +596,13 @@ function applySawHit()
 	if (mode == 'Disabled') return;
 
 	if (mode == 'Instakill')
+	{
+		// Distinct, more dramatic Game Over music for an instakill sawblade
+		// death - see qtStageKiller.hx for the full rationale.
+		GameOverSubstate.loopSoundName = 'gameOver-sawblade';
+		GameOverSubstate.endSoundName = 'gameOverEnd-sawblade';
 		game.health = 0;
+	}
 	else
 		game.health = Math.max(game.health - 1.0, 0);
 

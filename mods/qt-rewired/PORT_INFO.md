@@ -98,6 +98,26 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   necesidad. Posicionado/animado igual que los popups nativos de Psych
   (`placement = FlxG.width * 0.35`, `screenCenter()` + offset, ver
   `PlayState.hx:popUpScore`): sube y se desvanece en 0.6s.
+- **Música de Game Over distinta al morir por un instakill de sierra**
+  (Obliterated/Obliterated-legacy/Obliterated-erect, `applySawHit()` en
+  `qtStageKiller.hx`/`qtStageObliteratedErect.hx`), ported desde
+  `SawbladeAndDodgeModule.hxc`'s `executeInstantKill()`
+  (`GameOverSubState.musicSuffix = '-sawblade'`). Psych no tiene el concepto
+  de "sufijo de música" del original, pero SÍ expone
+  `GameOverSubstate.loopSoundName`/`endSoundName` como `public static`
+  directamente asignables — y `GameOverSubstate.resetVariables()` (que los
+  resetearía al default de la canción) solo corre una vez en
+  `PlayState.create()`, mucho antes de que esto pueda dispararse, así que
+  asignarlos justo antes de matar al jugador (mismo momento exacto que el
+  original) queda pegado para ese intento. Los archivos de audio
+  (`gameOver-sawblade.ogg`/`gameOverEnd-sawblade.ogg`) ya estaban en el
+  paquete original sin portar — copiados a `music/`. Los campos
+  `blueBallSuffix`/`mustNotExit`/`blueballed` del original (que además
+  bloquean la salida normal de la pantalla de Game Over y piden mantener
+  presionado para confirmar) NO se portaron — no existen en el
+  `GameOverSubstate` de Psych en absoluto (confirmado leyendo el código
+  fuente real), y agregarlos requeriría reescribir la lógica interna de
+  `update()` de esa clase, que vive en `source/`.
 - **Gesto de "final feliz" cerca del clímax de Blissful/Blissful-erect/
   Blissful-pico, vía el evento nativo `PlayAnimation` del chart original**
   (`onEvent`/`playCharAnim` en `qtStage.hx`/`qtStageCityErect.hx`/
@@ -604,12 +624,52 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
       que el gameplay), así que Freeplay ya funciona correctamente — esto es
       una variante más chica/distinta del ícono, cosmético, no una feature
       faltante.
-    - **Clases de sprite/UI del menú** (`RetrySprite`/`SpeakerSprite`/
-      `BusSprite`/`QtPlushMenuButton`) — un botón de "Retry" con estilo Pico,
-      un prop de altavoz, un prop de bus y un easter egg del menú principal.
-      Ninguna se usa desde un stage/canción — viven en pantallas de menú
-      compartidas (`FreeplayState`/menú principal), que están en `source/`,
-      no en la carpeta de mod.
+    - **Clases de sprite/UI del menú** (`RetrySprite`/`BusSprite`/
+      `QtPlushMenuButton`) — un botón de "Retry" con estilo Pico, un prop de
+      bus y un easter egg del menú principal. Ninguna se usa desde un
+      stage/canción — viven en pantallas de menú compartidas
+      (`FreeplayState`/menú principal), que están en `source/`, no en la
+      carpeta de mod. (`SpeakerSprite` NO es de menú pese a estar en la
+      misma carpeta de scripts — ver el ítem de abajo, es un prop de
+      gameplay).
+    - **Prop "altavoz" (boombox) que pulsa junto a GF-QT al bailar**
+      (`scripts/sprite/SpeakerSprite.hxc`, atlas
+      `characters/gf-qt/speakers`, símbolo "bump") — encontrado leyendo
+      `gf-qt.hxc`: el original lo cose DENTRO del propio rig de GF vía
+      `getFramesWithKeyword("placeholder")`/`FlxSpriteElement` (se adjunta a
+      un punto que se mueve con cada frame de su animación), algo que Psych
+      no tiene forma de replicar — la alternativa sería un `FlxAnimate`
+      standalone con un offset fijo aproximado (mismo enfoque que
+      `picoOverlay`/`tsundereOverlay`), reproduciendo `bump` cada vez que GF
+      baila. El atlas SÍ está disponible en el paquete original y no se
+      copió a este mod — quedó pendiente por relación costo/beneficio
+      (un prop decorativo, con un offset que en el mejor caso sería una
+      aproximación, no exacto).
+    - **Mecánica de "fakeout death" + confirmación sostenida en Game Over
+      al morir por sierra** (`bf-qt.hxc`: `doFakeoutDeath()`, y el bloqueo de
+      salida normal + "mantené para confirmar" atado a
+      `GameOverSubState.blueBallSuffix`/`mustNotExit`/`blueballed`) — ver
+      también la entrada de "Estado actual" sobre la música de Game Over del
+      sawblade. Esto es un límite arquitectónico real, no solo de esfuerzo:
+      el `GameOverSubstate` de Psych tiene una secuencia de animación de
+      muerte FIJA y hardcodeada en su propio `update()`
+      (`firstDeath`→`deathLoop`→`deathConfirm`, sin ningún hook para
+      intercalar un estado extra tipo "fakeout" ni para bloquear la salida
+      normal del jugador) — replicar esto necesitaría reescribir esa lógica
+      en `source/substates/GameOverSubstate.hx`, no algo alcanzable desde
+      HScript.
+    - **Desbloqueo progresivo de canciones dentro de Story Mode**
+      (`scripts/weeks/QTWeek.hxc`'s `getSongDisplayNames()`: solo muestra
+      "Blissful" hasta que se completa, recién ahí aparece "Obliterated" —
+      el original en Story Mode solo tenía esas 2 canciones base, todas las
+      demás variantes eran Freeplay-only). El `WeekData` de Psych no tiene
+      ningún campo para ocultar canciones individuales de un mismo `weeks/
+      *.json` según el progreso guardado, ni para que Story Mode y Freeplay
+      muestren listas de canciones distintas dentro de la misma semana (el
+      campo `hideFreeplay`/`hideStoryMode` es por SEMANA entera, no por
+      canción) — implementarlo bien requeriría tocar `StoryMenuState.hx`.
+      Este mod expone las 7 variantes por igual en Story Mode y Freeplay
+      desde el principio, sin ese desbloqueo progresivo.
     - **Cápsula animada de Story Menu** (`data/levels/QTWeek.json`'s
       `props` — QT/BF/GF con animaciones idle/confirm en la lista de
       semanas) — distinta del `MenuCharacter` que ya se portó (limitación 6,

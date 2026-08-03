@@ -1,5 +1,6 @@
 import openfl.display.BlendMode;
 import hxcodec.flixel.FlxVideo;
+import substates.GameOverSubstate;
 
 // --- Background layers ---
 var tvStaticLeft:FlxSprite;
@@ -459,7 +460,19 @@ function applySawHit()
 	if (mode == 'Disabled') return;
 
 	if (mode == 'Instakill')
+	{
+		// Distinct, more dramatic Game Over music for an instakill sawblade
+		// death, ported from SawbladeAndDodgeModule.hxc's executeInstantKill()
+		// (GameOverSubState.musicSuffix = '-sawblade'). Psych doesn't have a
+		// music-suffix concept, but GameOverSubstate.loopSoundName/endSoundName
+		// are public statics settable directly - and GameOverSubstate.
+		// resetVariables() (which would reset them back to the song's default)
+		// only runs once at PlayState.create(), long before this can fire, so
+		// setting them here right before death sticks for this attempt.
+		GameOverSubstate.loopSoundName = 'gameOver-sawblade';
+		GameOverSubstate.endSoundName = 'gameOverEnd-sawblade';
 		game.health = 0;
+	}
 	else
 		game.health = Math.max(game.health - 1.0, 0);
 
