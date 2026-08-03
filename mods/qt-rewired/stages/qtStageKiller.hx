@@ -299,6 +299,36 @@ function onSongRetry()
 {
 	FlxTween.cancelTweensOf(blackScreen);
 	blackScreen.alpha = 1;
+	sawInstakillDeath = false;
+}
+
+// A distinct mood for dying to an instakill sawblade hit vs a normal miss -
+// see applySawHit() below for the Game Over music half of this (which
+// already ports cleanly), and PORT_INFO.md for why the original's actual
+// "fakeoutDeath" jumpscare pose/sound can't be: neither asset exists
+// anywhere in this mod's copied package (they're base-game assets from the
+// modern engine, not part of what QT Rewired itself shipped). This is a
+// same-spirit substitute using only things already proven safe in this mod
+// (FlxG.camera.shake, a tinted overlay tween) rather than inventing new
+// content - onGameOverStart fires for every loaded script, including this
+// stage script, exactly like the global gameOverQuotes.hx script already
+// relies on.
+var sawInstakillDeath:Bool = false;
+
+function onGameOverStart()
+{
+	if (!sawInstakillDeath) return;
+	if (GameOverSubstate.instance == null) return;
+
+	FlxG.camera.shake(0.015, 0.5);
+
+	var vignette:FlxSprite = new FlxSprite(0, 0);
+	vignette.makeGraphic(Std.int(FlxG.width), Std.int(FlxG.height), 0xFF8B0000);
+	vignette.scrollFactor.set();
+	vignette.blend = BlendMode.MULTIPLY;
+	vignette.alpha = 0.6;
+	GameOverSubstate.instance.add(vignette);
+	FlxTween.tween(vignette, {alpha: 0}, 2.2, {ease: FlxEase.quadOut});
 }
 
 // Sequence timeline (beats, relative to the event's strumTime):
@@ -471,6 +501,7 @@ function applySawHit()
 		// setting them here right before death sticks for this attempt.
 		GameOverSubstate.loopSoundName = 'gameOver-sawblade';
 		GameOverSubstate.endSoundName = 'gameOverEnd-sawblade';
+		sawInstakillDeath = true;
 		game.health = 0;
 	}
 	else

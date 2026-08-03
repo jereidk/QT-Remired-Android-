@@ -116,8 +116,16 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   bloquean la salida normal de la pantalla de Game Over y piden mantener
   presionado para confirmar) NO se portaron — no existen en el
   `GameOverSubstate` de Psych en absoluto (confirmado leyendo el código
-  fuente real), y agregarlos requeriría reescribir la lógica interna de
-  `update()` de esa clase, que vive en `source/`.
+  fuente real), y bloquear la tecla BACK específicamente no se puede desde
+  HScript porque `GameOverSubstate.update()` nunca revisa el valor que
+  devuelve `callOnScripts('onUpdate', ...)` (ver limitación 15 para el
+  detalle completo, incluida la corrección sobre qué es realmente un límite
+  de Psych y qué era solo un asset faltante). En su lugar, `onGameOverStart`
+  (que SÍ es un hook real, confirmado — ya lo usa `scripts/
+  gameOverQuotes.hx`) dispara un shake de cámara y un tinte rojo con blend
+  `MULTIPLY` que se desvanece sobre `GameOverSubstate.instance`, como
+  sustituto del jumpscare del original con el mismo espíritu dramático, sin
+  inventar assets que no existen en el paquete.
 - **Gesto de "final feliz" cerca del clímax de Blissful/Blissful-erect/
   Blissful-pico, vía el evento nativo `PlayAnimation` del chart original**
   (`onEvent`/`playCharAnim` en `qtStage.hx`/`qtStageCityErect.hx`/
@@ -648,16 +656,34 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
     - **Mecánica de "fakeout death" + confirmación sostenida en Game Over
       al morir por sierra** (`bf-qt.hxc`: `doFakeoutDeath()`, y el bloqueo de
       salida normal + "mantené para confirmar" atado a
-      `GameOverSubState.blueBallSuffix`/`mustNotExit`/`blueballed`) — ver
-      también la entrada de "Estado actual" sobre la música de Game Over del
-      sawblade. Esto es un límite arquitectónico real, no solo de esfuerzo:
-      el `GameOverSubstate` de Psych tiene una secuencia de animación de
-      muerte FIJA y hardcodeada en su propio `update()`
-      (`firstDeath`→`deathLoop`→`deathConfirm`, sin ningún hook para
-      intercalar un estado extra tipo "fakeout" ni para bloquear la salida
-      normal del jugador) — replicar esto necesitaría reescribir esa lógica
-      en `source/substates/GameOverSubstate.hx`, no algo alcanzable desde
-      HScript.
+      `GameOverSubState.blueBallSuffix`/`mustNotExit`/`blueballed`) —
+      **corrección de una revisión posterior**: acá arriba se había dicho
+      que esto era "un límite arquitectónico, `GameOverSubstate` no tiene
+      ningún hook" — impreciso. `GameOverSubstate.update()` SÍ llama
+      `callOnScripts('onUpdate', [elapsed])`/`onGameOverStart` cada frame
+      (confirmado leyendo el código fuente real), así que un stage script
+      SÍ puede leer/escribir `GameOverSubstate.instance` y su `boyfriend`
+      en vivo — de hecho `scripts/gameOverQuotes.hx` ya depende de eso. Lo
+      que realmente bloquea cada mitad de esto es distinto:
+      - La pose/sonido del jumpscare (`fakeoutDeath`/`fakeout_death`): **no
+        es un límite de Psych, es que el asset no existe en absoluto** en
+        el paquete de este mod (ni el símbolo del atlas `bfFakeOut` ni el
+        sonido están en ningún lado de lo extraído) — son assets del juego
+        base del motor moderno, no algo que QT: Rewired haya empaquetado.
+      - Bloquear la tecla BACK para forzar "mantené para confirmar": esto
+        SÍ es un límite real de Psych, verificado en el código —
+        `GameOverSubstate.update()` llama a `callOnScripts('onUpdate', ...)`
+        pero nunca revisa el valor que devuelve (a diferencia de otros
+        hooks de este mismo motor como `onKeyPressPre`, que sí chequean
+        `Function_Stop`), así que no hay forma de cancelar el manejo nativo
+        de BACK que corre inmediatamente después, en el mismo frame.
+      - **Lo que SÍ se portó en su lugar** (ver "Estado actual"): al morir
+        por un instakill de sierra, además de la música distinta, ahora
+        también hay un shake de cámara y un tinte rojo que se desvanece
+        sobre la pantalla de Game Over — mismo espíritu dramático del
+        original, construido solo con técnicas ya probadas en este mod
+        (`FlxG.camera.shake`, un `FlxSprite` con blend `MULTIPLY` agregado a
+        `GameOverSubstate.instance`), sin inventar contenido nuevo.
     - **Desbloqueo progresivo de canciones dentro de Story Mode**
       (`scripts/weeks/QTWeek.hxc`'s `getSongDisplayNames()`: solo muestra
       "Blissful" hasta que se completa, recién ahí aparece "Obliterated" —

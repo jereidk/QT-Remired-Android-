@@ -291,6 +291,30 @@ function onSongRetry()
 	game.opponentStrums.visible = true;
 
 	fadeHud(0, 0, true);
+	sawInstakillDeath = false;
+}
+
+// A distinct mood for dying to an instakill sawblade hit vs a normal miss -
+// see qtStageKiller.hx for the full rationale (the original's real
+// "fakeoutDeath" jumpscare pose/sound has no asset anywhere in this mod's
+// copied package - this is a same-spirit substitute using only things
+// already proven safe here, not new content).
+var sawInstakillDeath:Bool = false;
+
+function onGameOverStart()
+{
+	if (!sawInstakillDeath) return;
+	if (GameOverSubstate.instance == null) return;
+
+	FlxG.camera.shake(0.015, 0.5);
+
+	var vignette:FlxSprite = new FlxSprite(0, 0);
+	vignette.makeGraphic(Std.int(FlxG.width), Std.int(FlxG.height), 0xFF8B0000);
+	vignette.scrollFactor.set();
+	vignette.blend = BlendMode.MULTIPLY;
+	vignette.alpha = 0.6;
+	GameOverSubstate.instance.add(vignette);
+	FlxTween.tween(vignette, {alpha: 0}, 2.2, {ease: FlxEase.quadOut});
 }
 
 function onEvent(eventName:String, value1:String, value2:String, strumTime:Float)
@@ -601,6 +625,7 @@ function applySawHit()
 		// death - see qtStageKiller.hx for the full rationale.
 		GameOverSubstate.loopSoundName = 'gameOver-sawblade';
 		GameOverSubstate.endSoundName = 'gameOverEnd-sawblade';
+		sawInstakillDeath = true;
 		game.health = 0;
 	}
 	else
