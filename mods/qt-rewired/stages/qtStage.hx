@@ -69,39 +69,99 @@ function onGameOver()
 	// Restore stage colors in case a future dodge-mechanic tint is added later.
 }
 
-// --- Simplified intro/outro cutscene (see PORT_INFO.md) ---
-// The original (QtTransformSongOutro.hxc) drove a whole QT->robot transform
-// character animation with a bus sprite and camera choreography. This is a
-// scaled-down stand-in - fade to black, spotlight, the original "qtsfx" cue,
-// hold, fade back - using only assets already on this stage, played once per
-// song completion (matching the original's hasPlayedOutro guard).
-var introCutscenePlayed:Bool = false;
+// --- Blissful (base) outro cutscene, ported from blissful.hxc's onSongEnd()
+// + QtTransformSongOutro.hxc. QT is swapped out for a standalone FlxAnimate
+// playing the mod's own "qt transform" symbol (a proper Adobe Animate atlas
+// with a symbol dictionary this time, unlike the frame-label-only atlases
+// used elsewhere - addBySymbol works directly), inserted into the display
+// list right below the fade overlays so it renders where dad used to be.
+// Same onEndSong/Function_Stop interception pattern as the other cutscenes.
+// Subtitles/skip-key are dropped (Psych has no subtitle system) - see
+// PORT_INFO.md.
+var hasPlayedOutro:Bool = false;
+var qtCutscene:FlxAnimate;
 
 function onEndSong():Dynamic
 {
-	if (introCutscenePlayed) return null;
-	introCutscenePlayed = true;
+	if (hasPlayedOutro) return null;
+	hasPlayedOutro = true;
 	playIntroCutscene();
 	return Function_Stop;
 }
 
+function dadFocusX():Float return game.dad.getMidpoint().x + 150 + game.dad.cameraPosition[0] + game.opponentCameraOffset[0];
+function dadFocusY():Float return game.dad.getMidpoint().y - 100 + game.dad.cameraPosition[1] + game.opponentCameraOffset[1];
+
 function playIntroCutscene()
 {
-	FlxTween.tween(blackScreen, {alpha: 1}, 1.0, {ease: FlxEase.quadOut});
-	FlxTween.tween(spotLight, {alpha: 1}, 1.0, {
-		ease: FlxEase.quadOut,
-		onComplete: function(_)
-		{
-			FlxG.sound.play(Paths.sound('qtsfx'));
-			new FlxTimer().start(3.5, function(_)
-			{
-				FlxTween.tween(blackScreen, {alpha: 0}, 1.0);
-				FlxTween.tween(spotLight, {alpha: 0}, 1.0, {
-					onComplete: function(_) game.endSong()
-				});
-			});
-		}
+	game.inCutscene = true;
+	game.isCameraOnForcedPos = true;
+	if (cameraFollowTween != null) cameraFollowTween.cancel();
+	if (cameraZoomTween != null) cameraZoomTween.cancel();
+
+	FlxTween.tween(game.camHUD, {alpha: 0}, 1);
+
+	qtCutscene = new FlxAnimate(game.dad.x - 45, game.dad.y - 269);
+	qtCutscene.showPivot = false;
+	Paths.loadAnimateAtlas(qtCutscene, 'characters/QT_assets/qtCutscene');
+	qtCutscene.anim.addBySymbol('transform', 'qt transform', 24, false);
+	game.dad.visible = false;
+
+	var insertAt:Int = game.members.indexOf(lightOverlay);
+	if (insertAt >= 0) game.insert(insertAt, qtCutscene);
+	else game.add(qtCutscene);
+
+	// 0.68 is the original's literal absolute target zoom (not a multiplier
+	// of the stage's own defaultZoom, unlike tweenCamZoomAbs elsewhere).
+	cameraZoomTween = FlxTween.tween(FlxG.camera, {zoom: 0.68}, 1, {ease: FlxEase.quadInOut});
+	qtCutscene.anim.play('transform', true);
+
+	var opponentTargetX:Float = dadFocusX();
+	var opponentTargetY:Float = game.camFollow.y;
+
+	new FlxTimer().start(1, function(_) FlxG.sound.play(Paths.sound('qtsfx')));
+
+	new FlxTimer().start(1, function(_) tweenCamPos(opponentTargetX, opponentTargetY, 2.55, FlxEase.quadInOut));
+
+	new FlxTimer().start(2.26, function(_)
+	{
+		FlxTween.tween(lightOverlay, {alpha: 0}, 1.10, {ease: FlxEase.linear});
+		FlxTween.tween(blackScreen, {alpha: 1}, 1.10, {ease: FlxEase.linear});
+		FlxTween.tween(spotLight, {alpha: 1}, 1.10, {ease: FlxEase.linear});
 	});
+
+	new FlxTimer().start(12, function(_)
+	{
+		FlxG.camera.shake(0.002, 8);
+		FlxTween.tween(redScreen, {alpha: 1}, 0.7, {ease: FlxEase.linear});
+		FlxTween.tween(spotLight, {alpha: 0}, 0.7, {ease: FlxEase.linear});
+	});
+
+	new FlxTimer().start(13, function(_)
+	{
+		FlxG.camera.fade(0xFFFFFFFF, 2, false, function()
+		{
+			if (qtCutscene != null)
+			{
+				qtCutscene.destroy();
+				qtCutscene = null;
+			}
+		});
+	});
+
+	new FlxTimer().start(15.7, function(_) FlxG.camera.fade(0xFF000000, 0.0001, false));
+
+	new FlxTimer().start(17.5, function(_)
+	{
+		game.inCutscene = false;
+		game.endSong();
+	});
+}
+
+function tweenCamPos(x:Float, y:Float, duration:Float, ease:Float->Float)
+{
+	if (cameraFollowTween != null) cameraFollowTween.cancel();
+	cameraFollowTween = FlxTween.tween(game.camFollow, {x: x, y: y}, duration, {ease: ease});
 }
 
 function onEvent(eventName:String, value1:String, value2:String, strumTime:Float)

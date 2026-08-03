@@ -90,12 +90,23 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   `Change Character` de Psych durante la ventana exacta de la sección
   (confirmado que QT no canta ninguna nota durante esos ~24s, así que el
   intercambio de personaje es seguro) y devuelto a `qt` al terminar.
-- **Cutscene de intro simplificada** en Blissful (base): al terminar la
-  canción por primera vez, se intercepta `onEndSong`/`Function_Stop` (mismo
-  mecanismo que usaba el mod original con `hasPlayedOutro`) para mostrar un
-  fundido a negro + spotlight + el sonido `qtsfx` antes de continuar
-  normalmente vía `game.endSong()`. Ver limitación 3 sobre el alcance
-  reducido frente al original.
+- **Cutscene final de Blissful (base), portada casi completa** (reemplaza la
+  versión simplificada de antes). Portada de `blissful.hxc`'s `onSongEnd()` +
+  `QtTransformSongOutro.hxc` — resultó ser mucho más simple de lo que
+  parecía por el nombre: no hay sprite de bus, es solo dad (QT) reemplazado
+  por un `FlxAnimate` standalone que reproduce el símbolo `qt transform` del
+  atlas propio del mod (`QT_assets/qtCutscene`, atlas Adobe Animate con
+  diccionario de símbolos real esta vez — `addBySymbol` directo, no hace
+  falta `addByFrameLabel`), insertado en la lista de renderizado justo debajo
+  de las capas de fundido (`game.insert`) para que aparezca donde estaba QT.
+  En `qtStage.hx`: mismo patrón `onEndSong`/`Function_Stop`/guarda
+  `hasPlayedOutro`, fundido del HUD, zoom de cámara a 0.68 (valor absoluto
+  literal del original, no un multiplicador del zoom del stage), el sonido
+  `qtsfx`, tween de cámara al punto de foco de dad, las mismas capas de
+  fundido (`lightOverlay`/`blackScreen`/`spotLight`/`redScreen`) que ya
+  existían en el stage, un `camera.shake` + fundido a blanco, y finalmente
+  `game.endSong()`. Subtítulos y skip-key omitidos (igual que en las otras
+  cutscenes) — ver limitación 3.
 - **Cutscene final de Blissful-erect, portada casi completa** (a diferencia
   de la de Blissful base, esta SÍ es fiel — `blissful-erect.hxc` tiene su
   propia `onSongEnd` totalmente distinta, con coreografía de cámara real).
@@ -158,14 +169,14 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    específicamente). El note kind funciona (aplica el sufijo, no rompe nada),
    pero cosméticamente puede no notarse el cambio en BF. **QT sí tiene su
    animación dedicada** ahora (ver "Notas de implementación" abajo).
-3. **Cutscene de intro simplificada.** El original (`QtTransformSongOutro.hxc`)
-   animaba una transformación completa de QT con un sprite de bus y
-   coreografía de cámara. La versión portada (`qtStage.hx`, solo en Blissful
-   base) es un placeholder honesto: fade a negro + spotlight + el sonido
-   original `qtsfx` + espera + fade de vuelta, usando `onEndSong`/
-   `Function_Stop` para interceptar el fin de canción una sola vez (igual que
-   el `hasPlayedOutro` original) y `game.endSong()` para continuar
-   normalmente después. Sin sprite de QT transformándose ni bus.
+3. **Cutscene final de Blissful (base) sin subtítulos ni skip.** A diferencia
+   de lo que se pensaba antes (un supuesto sprite de "bus"), el original
+   (`blissful.hxc` + `QtTransformSongOutro.hxc`) resultó ser más simple: solo
+   QT reemplazada por el sprite `qt transform` + coreografía de cámara +
+   fundidos de color. Ya está portado casi por completo (ver "Estado
+   actual"); lo único que falta, igual que en la cutscene de Blissful-erect,
+   son los subtítulos (Psych no tiene sistema nativo) y el prompt de
+   "presiona para saltar".
 4. **`changeStage` solo recolorea, no cambia de escenario real.** Se portó
    correctamente para Obliterated/Obliterated-legacy (`tvLights`/
    `lightOverlay` cambian entre Normal/Killer/Blue/Red, que es literalmente
@@ -218,21 +229,20 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
 
 ## Próximos pasos sugeridos (en orden)
 
-1. Cutscene de intro completa de Blissful base (sprite de QT transformándose
-   + bus), en vez de la versión simplificada (fade + spotlight + sfx) que hay
-   ahora — Blissful-erect y Blissful-pico ya tienen sus cutscenes propias
-   casi fieles (ver "Estado actual" y limitaciones 8/10).
-2. Portrait de Story Menu específico para QT/KB/Pico (en vez de caer al
+Las 3 canciones que tienen cutscene en el original (Blissful base, Blissful
+erect, Blissful pico) ya están portadas casi por completo. Lo que queda:
+
+1. Portrait de Story Menu específico para QT/KB/Pico (en vez de caer al
    genérico de BF).
-3. `blackIn`/`cutsceneVideo`/`fadeStart` (eventos de Obliterated/legacy aún
-   sin portar, relacionados con la cutscene completa del punto 1).
-4. Curva de decaimiento exacta para `SetCameraBop` (actualmente es un tween
+2. `blackIn`/`cutsceneVideo`/`fadeStart` (eventos de Obliterated/legacy sin
+   portar — no están relacionados con ninguna de las 3 cutscenes ya hechas).
+3. Curva de decaimiento exacta para `SetCameraBop` (actualmente es un tween
    de ida y vuelta de duración fija, no la exponencial continua del original).
-5. Subtítulos y mecanismo de skip para la cutscene final de Blissful-erect
-   (ver limitación 8) — requeriría un sistema de subtítulos propio en HScript
-   ya que Psych no trae uno nativo.
-6. Overlay de la pose `introbl` de Blissful-pico más preciso (ver limitación
-   10) y/o bop de GF sincronizado a los beats de `introSong-pico`.
+4. Subtítulos y mecanismo de skip para las 3 cutscenes (limitaciones 3/8) —
+   requeriría un sistema de subtítulos propio en HScript ya que Psych no
+   trae uno nativo.
+5. Overlay de la pose `introbl` de Blissful-pico más preciso (limitación 10)
+   y/o bop de GF sincronizado a los beats de `introSong-pico`.
 
 ## Notas de implementación por variante
 
