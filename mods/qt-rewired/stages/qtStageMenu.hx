@@ -131,6 +131,8 @@ function onCreatePost()
 	if (game.boyfriend != null) game.boyfriend.visible = false;
 	if (game.gf != null) game.gf.visible = false;
 
+	setupMobileNav();
+
 	FlxG.sound.music.volume = 0.5;
 
 	bg = new FlxSprite(0, 0);
@@ -145,6 +147,33 @@ function onCreatePost()
 	buildStickers();
 
 	showOnly('title');
+}
+
+// Android/mobile navigation for this custom menu. PlayState already sets up
+// mobileControls unconditionally on any mobile build (the note-hitting
+// arrows for real gameplay) - not useful here since nothing is ever hit,
+// so it's hidden. In its place: Psych's own MENU_CHARACTER DPad/ActionMode
+// pair (assets/shared/mobile/{DPadModes,ActionModes}/MENU_CHARACTER.json,
+// already shipped with the base engine, not something this mod invents) -
+// a plain 4-way D-pad plus A/B/C buttons, exactly matching a menu-style
+// up/down/left/right/accept/back layout. Confirmed in ClientPrefs.hx that
+// the button IDs it dispatches (UP/DOWN/LEFT/RIGHT/A/B) are exactly what
+// keyJustPressed('ui_up'/etc/'accept'/'back') already listen for via
+// Controls.hx's mobileBinds map - so touching these buttons drives the same
+// input calls this whole file already uses, no extra plumbing needed.
+// game.touchPad itself is only ever created by native code on non-Android
+// mobile (PlayState.hx: #if mobile #if (!android)), so on Android there's
+// nothing to remove first - removeTouchPad() is still called defensively
+// since it's a no-op when touchPad is null.
+function setupMobileNav()
+{
+	if (!FlxG.onMobile) return;
+
+	if (game.mobileControls != null) game.mobileControls.instance.visible = false;
+
+	game.removeTouchPad();
+	game.addTouchPad('MENU_CHARACTER', 'MENU_CHARACTER');
+	game.addTouchPadCamera();
 }
 
 function onStartCountdown():Dynamic

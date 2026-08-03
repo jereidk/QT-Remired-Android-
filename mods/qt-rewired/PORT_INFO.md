@@ -400,6 +400,23 @@ y decidió proceder de todas formas.
   hardcodeado en el switch (`left`/`down`/`up`/`right`, que SÍ están
   hardcodeados ahí pero mapean a las teclas de NOTA, no de UI — por eso se
   usa el prefijo `ui_`).
+- **Controles táctiles para Android/mobile** (`setupMobileNav()`, llamada
+  desde `onCreatePost()`): dado que este repo apunta específicamente a
+  Android, hacía falta navegación táctil real, no solo teclado. Psych ya
+  trae el modo `MENU_CHARACTER` de DPad/ActionMode
+  (`assets/shared/mobile/{DPadModes,ActionModes}/MENU_CHARACTER.json`, del
+  motor base, no algo que este mod invente) — un D-pad de 4 direcciones más
+  botones A/B/C. Se confirmó en `ClientPrefs.hx`
+  (`mobileBinds: 'ui_up' => [UP, NOTE_UP], ... 'accept' => [A], 'back' =>
+  [B]`) que los botones de ESE modo disparan exactamente los mismos IDs que
+  ya escuchan los `keyJustPressed(...)` de este archivo — cero lógica de
+  input adicional, solo mostrar el pad. `game.mobileControls` (las flechas
+  de acierto de nota que Psych crea sin condición en cualquier build
+  mobile, inútiles acá porque nunca cae una nota real) se esconde primero;
+  `game.touchPad` nativo solo lo crea el motor en mobile NO-Android (`#if
+  mobile #if (!android)` en `PlayState.hx`), así que en Android no hay nada
+  que pisar — `game.removeTouchPad()` igual se llama antes, a modo
+  defensivo (no hace nada si ya es `null`).
 - **Lanzar una canción real**: `launchSong()` replica EXACTAMENTE lo que
   hace `FreeplayState.hx` al confirmar una canción (confirmado leyendo su
   código fuente): `PlayState.SONG = Song.loadFromJson(jsonName, folder);
