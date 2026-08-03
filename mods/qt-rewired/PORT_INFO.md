@@ -98,6 +98,38 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   necesidad. Posicionado/animado igual que los popups nativos de Psych
   (`placement = FlxG.width * 0.35`, `screenCenter()` + offset, ver
   `PlayState.hx:popUpScore`): sube y se desvanece en 0.6s.
+- **Gesto de "final feliz" cerca del clímax de Blissful/Blissful-erect/
+  Blissful-pico, vía el evento nativo `PlayAnimation` del chart original**
+  (`onEvent`/`playCharAnim` en `qtStage.hx`/`qtStageCityErect.hx`/
+  `qtStagePico.hx`, evento sintético `PlayAnim` inyectado en `events.json` a
+  los timestamps exactos del chart original). Encontrado al revisar los
+  scripts de personaje (`characters/qt.hxc`/`bf-qt.hxc`/`gf-qt.hxc`) que
+  faltaban por cruzar contra el port: dad(QT) hace `preDance`→`cheer`,
+  gf(GF-QT) `preDance`→`cheer`, bf(BF-QT) el clásico `hey`. Lo interesante:
+  **`preDance`/`cheer` de QT y `preDance` de GF-QT ya estaban en los atlas
+  que este mod YA había copiado** (`export/qt pre dance`/`export/qt hey` en
+  `QT_assets/qt`, `export/gf pre dance` en `gf-qt`) — solo hacía falta
+  registrarlos en los `characters/*.json` (agregado a `qt.json`/`gf-qt.json`)
+  y disparar el evento; cero riesgo, mismo patrón `animType: "symbol"` ya
+  usado en el resto de cada uno de esos archivos. Lo mismo para
+  `preDance-erect` de dad durante la ventana de caramelldansen de
+  Blissful-erect (símbolo `qt transition`, agregado a `qt-erect.json`) — el
+  `cheer` final de esa misma ventana (t≈213.2s, todavía dentro del swap a
+  qt-erect) queda sin efecto porque el atlas `qt-erect` no tiene un símbolo
+  equivalente (Flixel/FlxAnimate ignoran un nombre de animación no
+  registrado en vez de tirar excepción, así que no rompe nada, solo no se ve
+  nada ese ~1s antes de volver a `qt` normal). **NO portado**: el `preDance`
+  de bf(BF-QT) — vive en un atlas Animate separado
+  (`characters/BF/bf-qt`, ya copiado en este mod para otro fin) que
+  `bf-qt.json` no puede referenciar porque está armado sobre el atlas
+  Sparrow vanilla de Psych (ver limitación 1) — se podría portar como
+  overlay standalone (mismo patrón de `picoOverlay`/`tsundereOverlay`) pero
+  se descartó por el riesgo/complejidad extra para una pose transicional
+  breve. En Blissful-pico tampoco se portaron los propios de esa canción
+  para boyfriend (`cough`/`burp-long`/`preDance`/`hey` de pico-qt, que ya
+  usa sprite vanilla de Pico sin ninguna de esas poses — limitación 1) ni
+  para girlfriend (`huh`/`combo50`, sin símbolo equivalente en el atlas de
+  `gf-qt`).
 - **Eventos de cámara `FocusCamera`/`ZoomCamera` con tween real** (no el
   salto instantáneo del evento nativo "Camera Follow Pos"/"Add Camera Zoom"
   de Psych). Cada uno de los 6 stages implementa `focusCamera()`/

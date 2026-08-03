@@ -396,6 +396,28 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 	if (eventName == 'FocusCamera') focusCamera(value1, value2);
 	else if (eventName == 'ZoomCamera') zoomCamera(value1, value2);
 	else if (eventName == 'SetCameraBop') setCameraBop(value1, value2);
+	else if (eventName == 'PlayAnim') playCharAnim(value1, value2);
+}
+
+// Native "PlayAnimation" chart event (value1=target, value2=anim, matching
+// the original's own event shape) - only wired up where the target anim
+// actually exists on the ported character. Blissful's own "happy ending"
+// gesture near the song's climax (t~125-153s): dad(qt) preDance->cheer,
+// gf(gf-qt) preDance->cheer, boyfriend(bf-qt) hey - all reuse symbols
+// already sitting unused in atlases this mod had already copied for other
+// animations (see PORT_INFO.md). Boyfriend's own preDance isn't ported: it
+// lives in a separate Animate atlas (characters/BF/bf-qt, a framelabel) that
+// bf-qt.json can't reference since it's built on vanilla Psych's Sparrow BF
+// atlas instead (see limitation 1) - doing it as a standalone overlay was
+// possible but added meaningful risk/complexity for one brief transitional
+// pose, so only the final "hey" (which bf-qt.json already has) fires.
+function playCharAnim(target:String, anim:String)
+{
+	var char:Dynamic = null;
+	if (target == 'dad') char = game.dad;
+	else if (target == 'boyfriend') char = game.boyfriend;
+	else if (target == 'girlfriend') char = game.gf;
+	if (char != null) char.playAnim(anim, true);
 }
 
 // --- Camera focus/zoom events, ported with real tweening (Psych's native

@@ -1024,6 +1024,16 @@
         ]
       ],
       [
+        126086.956521739,
+        [
+          [
+            "PlayAnim",
+            "dad",
+            "preDance"
+          ]
+        ]
+      ],
+      [
         131956.52173913,
         [
           [
@@ -1040,6 +1050,16 @@
             "ZoomCamera",
             "1,stage",
             "64,smoothStepInOut"
+          ]
+        ]
+      ],
+      [
+        138260.869565217,
+        [
+          [
+            "PlayAnim",
+            "dad",
+            "cheer"
           ]
         ]
       ],
@@ -1160,6 +1180,16 @@
             "ZoomCamera",
             "0.9,stage",
             "30,expoOut"
+          ]
+        ]
+      ],
+      [
+        153043.47826087,
+        [
+          [
+            "PlayAnim",
+            "girlfriend",
+            "cheer"
           ]
         ]
       ],

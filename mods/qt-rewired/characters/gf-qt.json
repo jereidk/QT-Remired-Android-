@@ -49,6 +49,14 @@
 			"loop": false,
 			"indices": [],
 			"offsets": [0, 0]
+		},
+		{
+			"anim": "preDance",
+			"name": "export/gf pre dance",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
 		}
 	]
 }

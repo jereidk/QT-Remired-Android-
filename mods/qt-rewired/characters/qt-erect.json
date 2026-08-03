@@ -33,6 +33,14 @@
 			"loop": true,
 			"indices": [],
 			"offsets": [0, 0]
+		},
+		{
+			"anim": "preDance-erect",
+			"name": "qt transition",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
 		}
 	]
 }

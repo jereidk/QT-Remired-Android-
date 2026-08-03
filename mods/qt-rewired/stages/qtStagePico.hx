@@ -161,6 +161,25 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 	if (eventName == 'FocusCamera') focusCamera(value1, value2);
 	else if (eventName == 'ZoomCamera') zoomCamera(value1, value2);
 	else if (eventName == 'SetCameraBop') setCameraBop(value1, value2);
+	else if (eventName == 'PlayAnim') playCharAnim(value1, value2);
+}
+
+// Native "PlayAnimation" chart event (value1=target, value2=anim) - see
+// qtStage.hx for the full rationale. Only dad(qt)'s preDance->cheer fires
+// here (reusing the same qt.json entries added for Blissful base). The
+// chart's own boyfriend(pico-qt)/girlfriend(gf-qt) cues for this same
+// moment - cough/burp-long/preDance/hey on pico-qt, huh/combo50 on gf-qt -
+// aren't ported: pico-qt is already a vanilla-Pico-sprite fallback with none
+// of those poses (limitation 1), and gf-qt's atlas has no huh/combo50
+// symbols. gf-qt's own "cheer" at this same moment DOES fire, though -
+// same entry already added for Blissful base.
+function playCharAnim(target:String, anim:String)
+{
+	var char:Dynamic = null;
+	if (target == 'dad') char = game.dad;
+	else if (target == 'boyfriend') char = game.boyfriend;
+	else if (target == 'girlfriend') char = game.gf;
+	if (char != null) char.playAnim(anim, true);
 }
 
 // --- Blissful Pico intro cutscene, ported from blissful-pico.hxc's

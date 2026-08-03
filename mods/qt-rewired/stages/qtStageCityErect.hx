@@ -152,6 +152,24 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 	if (eventName == 'FocusCamera') focusCamera(value1, value2);
 	else if (eventName == 'ZoomCamera') zoomCamera(value1, value2);
 	else if (eventName == 'SetCameraBop') setCameraBop(value1, value2);
+	else if (eventName == 'PlayAnim') playCharAnim(value1, value2);
+}
+
+// Native "PlayAnimation" chart event (value1=target, value2=anim) - see
+// qtStage.hx for the full rationale. Here it's just dad(qt/qt-erect,
+// whichever is currently swapped in during the caramelldansen window):
+// preDance (plain qt, before the swap) -> preDance-erect (qt-erect, within
+// the swap window) -> cheer. qt-erect's atlas has no cheer-equivalent
+// symbol, so that last call silently no-ops (Flixel/FlxAnimate just ignore
+// an unregistered animation name, they don't throw) - a ~1s gap right
+// before the swap back to plain qt, not worth building a workaround for.
+function playCharAnim(target:String, anim:String)
+{
+	var char:Dynamic = null;
+	if (target == 'dad') char = game.dad;
+	else if (target == 'boyfriend') char = game.boyfriend;
+	else if (target == 'girlfriend') char = game.gf;
+	if (char != null) char.playAnim(anim, true);
 }
 
 // --- Blissful Erect ending cutscene, ported from blissful-erect.hxc's

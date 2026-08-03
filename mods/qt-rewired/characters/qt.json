@@ -73,6 +73,22 @@
 			"loop": false,
 			"indices": [],
 			"offsets": [0, 0]
+		},
+		{
+			"anim": "cheer",
+			"name": "export/qt hey",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"anim": "preDance",
+			"name": "export/qt pre dance",
+			"fps": 24,
+			"loop": false,
+			"indices": [],
+			"offsets": [0, 0]
 		}
 	]
 }
