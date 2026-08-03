@@ -206,6 +206,19 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   `events.json` en el tiempo equivalente (287 beats × 60000/138 BPM ms —
   esta canción tiene tempo constante, sin cambios de BPM). Es un intercambio
   de un solo sentido (no vuelve a `qt-legacy`), igual que el original.
+- **HUD "Kade Engine 2021" de Blissful-2021** (`qtStage2021.hx`), ported
+  desde `blissful-2021.hx`: reemplaza el `scoreTxt` nativo de Psych
+  (oculto, no destruido) por un texto propio con
+  `NPS: N | Score: X | Combo Breaks: Y | Accuracy: Z% | (ranking) rango.`,
+  usando tallies propios de sick/good/bad/shit/missed (Psych no tiene un
+  equivalente a `Highscore.tallies` en vivo, solo persistencia de high
+  score entre sesiones) alimentados desde `goodNoteHit(note)`/
+  `noteMiss(note)` — `note.rating` y `note.strumTime` confirmados
+  disponibles ahí vía lectura directa de `PlayState.popUpScore`. Incluye el
+  popup de diferencia en ms por nota (coloreado según el juicio) y el
+  watermark `<nombre de canción> <dificultad> - KE 1.4.2`. Ver limitación
+  13 sobre qué partes del original no se portaron (toggles avanzados,
+  ranking con colores, y el simulador de lag a propósito).
 - **Corregido un bug latente de BOM UTF-8** en varios `spritemap1.json` (QT,
   sierra, GF-QT, BF-QT, BF-QT-erect, PICO/all) y en dos atlas Sparrow más
   (`storymenu/props/QT.xml`, `2021/qt-kb.xml`) que venían con marca de
@@ -352,23 +365,25 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
     personaje a un estado "tsundere" después. Portar solo el fundido a negro
     inicial sin el resto dejaría una apertura sin ningún pago visual —
     mismo criterio que ya se aplicó a `cutsceneVideo`/`fadeStart`.
-13. **HUD estilo "Kade Engine 2021" de Blissful-2021 no portado** —
-    `blissful-2021.hx` reemplaza por completo el HUD nativo con uno propio:
-    texto de score/precisión/ranking con markup de colores (fórmulas de
-    ranking/accuracy/combo-breaks propias, no las de Psych), un popup de
-    diferencia en ms en cada nota acertada, contador de NPS, y un watermark
-    "KE 1.4.2" — toda la temática del nombre "Blissful 2021" (una nostalgia
-    del HUD clásico de Kade Engine). No se portó por el riesgo de tener que
-    engancharse a la lógica interna de rating/combo de Psych
-    (`goodNoteHit`/`popUpScore`) sin poder verificar en este entorno si
-    expone lo necesario (el juicio/diferencia en ms de cada nota) de forma
-    segura — a diferencia del resto del port, que reusó únicamente APIs ya
-    comprobadas en este mismo código. **Sí se portó** la transformación de
-    personaje que vive en el mismo script (ver "Estado actual"). **A
-    propósito NO se portó** `handleFakeLag()`, una función que quema CPU al
-    azar para simular lag de forma intencional como chiste/nostalgia del
-    motor viejo — replicarla solo gastaría batería/rendimiento sin ningún
-    beneficio para quien juega.
+13. **HUD estilo "Kade Engine 2021" de Blissful-2021, portado sin los
+    toggles avanzados ni el ranking con colores.** Después de leer el código
+    fuente real de Psych (`PlayState.popUpScore`/`goodNoteHit`) confirmé que
+    `note.rating` ya usa exactamente los mismos nombres que el original
+    (`'sick'/'good'/'bad'/'shit'`, de `backend/Rating.hx`) y que
+    `note.strumTime` está disponible — o sea que SÍ se pudo portar con APIs
+    verificadas, no solo asumidas. Ver "Estado actual" para el detalle. Lo
+    que no se portó: el objeto `settings` de toggles (`baseGameRank`,
+    `baseGameAccuracy`, `lerpEverything`, `judgementCounter`,
+    `holdSplashes`, `noteSplashes`, `disableKeWatermark`) — todos estaban
+    apagados por defecto excepto el watermark (que sí se portó), así que se
+    hardcodeó directamente esa configuración por defecto en vez de construir
+    el sistema de toggles completo. Tampoco el ranking con colores vía
+    `FlxTextFormatMarkerPair`/`applyMarkup` (solo se usaba en el modo
+    `baseGameRank`, apagado por defecto, así que nunca se ejecutaba en la
+    configuración real del mod). **A propósito NO se portó**
+    `handleFakeLag()`, una función que quema CPU al azar para simular lag de
+    forma intencional como chiste/nostalgia del motor viejo — replicarla
+    solo gastaría batería/rendimiento sin ningún beneficio para quien juega.
 
 ## Assets de origen
 
@@ -415,15 +430,11 @@ base/legacy) ya están portadas. Lo que queda:
    separado `kb_export/kb_erect_intro`, `animType: "symbol"`) — ambas
    omitidas por bajo beneficio visual frente al riesgo de otro overlay
    standalone sin verificación visual posible.
-8. HUD estilo "Kade Engine 2021" de Blissful-2021 (limitación 13) — score/
-   precisión/ranking con markup de colores, popup de ms por nota, contador
-   de NPS, watermark "KE 1.4.2". Antes de intentar esto habría que verificar
-   qué datos expone realmente `goodNoteHit`/`noteMiss` a HScript en esta
-   versión de Psych (¿el objeto `note` trae el juicio/diferencia en ms ya
-   calculados, o habría que recalcularlos a mano replicando la lógica
-   interna de `popUpScore`?). NO incluir `handleFakeLag()` bajo ninguna
-   circunstancia — es una función que quema CPU a propósito, sin ningún
-   beneficio para quien juega.
+8. Toggles avanzados del HUD 2021 (`baseGameRank`/`baseGameAccuracy`/
+   `lerpEverything`/`judgementCounter`/`holdSplashes`/`noteSplashes`/
+   `disableKeWatermark`) y el ranking con colores vía `applyMarkup` —
+   omitidos porque todos estaban apagados por defecto en el original (ver
+   limitación 13), no cambiarían el comportamiento actual.
 
 ## Notas de implementación por variante
 

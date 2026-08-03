@@ -31,6 +31,198 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 	else if (eventName == 'SetCameraBop') setCameraBop(value1, value2);
 }
 
+// --- "Kade Engine 2021" throwback HUD, ported from blissful-2021.hx.
+// Replaces Psych's native score text with a custom score/accuracy/rank
+// line (own formulas, matching the original's judgement vocabulary 1:1 -
+// verified against source that Psych's own Rating.hx uses the exact same
+// 'sick'/'good'/'bad'/'shit' names), a per-note ms-timing popup, and a
+// watermark. The original also had a bunch of settings toggles
+// (baseGameRank/baseGameAccuracy/lerpEverything/judgementCounter/
+// holdSplashes/noteSplashes/disableKeWatermark) all OFF by default except
+// the watermark being ON - only that default configuration is ported here,
+// the toggles themselves aren't (see PORT_INFO.md). Deliberately does NOT
+// port handleFakeLag(), a function that burns CPU on purpose as a period
+// joke - see PORT_INFO.md.
+var scoreTxt2021:FlxText;
+var msDisplayText2021:FlxText;
+var msTween2021:FlxTween;
+
+var tallySick:Int = 0;
+var tallyGood:Int = 0;
+var tallyBad:Int = 0;
+var tallyShit:Int = 0;
+var tallyMissed:Int = 0;
+var totalNotesHitWeighted:Float = 0;
+var totalNotesPlayed:Int = 0;
+var notesHitArray:Array<Float> = [];
+var nps:Int = 0;
+
+function onCreatePost()
+{
+	game.scoreTxt.visible = false;
+
+	var isAltMode:Bool = ClientPrefs.data.downScroll || FlxG.onMobile;
+	var scoreX:Float = 0;
+	var scoreY:Float = 0;
+	var fieldWidth:Float = 0;
+	var align:String = 'left';
+
+	if (isAltMode)
+	{
+		scoreX = 0;
+		scoreY = FlxG.height * 0.17;
+		fieldWidth = FlxG.width;
+		align = 'center';
+	}
+	else
+	{
+		scoreX = FlxG.width * 0.35;
+		scoreY = game.healthBar.y + 50;
+		fieldWidth = 0;
+		align = 'left';
+	}
+
+	scoreTxt2021 = new FlxText(scoreX, scoreY, fieldWidth, generateScoreString(), 16);
+	scoreTxt2021.setFormat(Paths.font('vcr.ttf'), 16, 0xFFFFFFFF, align, FlxTextBorderStyle.OUTLINE, 0xFF000000);
+	scoreTxt2021.scrollFactor.set();
+	scoreTxt2021.cameras = [game.camHUD];
+	game.add(scoreTxt2021);
+
+	var watermark:FlxText = new FlxText(4, 0, 0, game.songName + ' ' + game.storyDifficultyText + ' - KE 1.4.2', 16);
+	watermark.setFormat(Paths.font('vcr.ttf'), 16, 0xFFFFFFFF, 'left', FlxTextBorderStyle.OUTLINE, 0xFF000000);
+	watermark.y = FlxG.height - watermark.height - 4;
+	watermark.scrollFactor.set(0, 0);
+	watermark.cameras = [game.camHUD];
+	game.add(watermark);
+}
+
+function goodNoteHit(note:Dynamic)
+{
+	switch (note.rating)
+	{
+		case 'sick': tallySick++;
+		case 'good': tallyGood++;
+		case 'bad': tallyBad++;
+		case 'shit': tallyShit++;
+	}
+
+	if (note.rating != 'sick')
+	{
+		var noteDiff:Float = Math.abs(Conductor.songPosition - note.strumTime);
+		var addShit:Float = 35 / noteDiff;
+
+		totalNotesHitWeighted += (addShit > 1 ? 1 : addShit);
+		totalNotesPlayed++;
+		notesHitArray.unshift(note.strumTime);
+
+		makeMsDisplay(Conductor.songPosition - note.strumTime, note.rating);
+	}
+}
+
+function noteMiss(note:Dynamic)
+{
+	tallyMissed++;
+	totalNotesPlayed++;
+}
+
+function makeMsDisplay(differenceRaw:Float, judgement:String)
+{
+	if (msDisplayText2021 == null)
+	{
+		msDisplayText2021 = new FlxText(0, 0, 0, '', 16);
+		msDisplayText2021.borderStyle = FlxTextBorderStyle.OUTLINE;
+		msDisplayText2021.borderSize = 1;
+		msDisplayText2021.borderColor = 0xFF000000;
+		msDisplayText2021.x = (FlxG.width * 0.507) + 100;
+		msDisplayText2021.y = (FlxG.height * 0.45 - 60) + 100;
+		msDisplayText2021.cameras = [game.camHUD];
+		game.add(msDisplayText2021);
+	}
+
+	if (msTween2021 != null) msTween2021.cancel();
+
+	var colorCode:Int = 0xFFFFFFFF;
+	switch (judgement)
+	{
+		case 'shit' | 'bad': colorCode = 0xFFFF0000;
+		case 'good': colorCode = 0xFF00FF00;
+		case 'sick': colorCode = 0xFF00FFFF;
+	}
+
+	msDisplayText2021.color = colorCode;
+	msDisplayText2021.text = truncateFloat(differenceRaw, 2) + 'ms';
+	msDisplayText2021.alpha = 1;
+
+	msTween2021 = FlxTween.tween(msDisplayText2021, {alpha: 0}, 0.2, {startDelay: 0.1});
+}
+
+function truncateFloat(number:Float, precision:Int):Float
+{
+	var num:Float = number * Math.pow(10, precision);
+	return Math.round(num) / Math.pow(10, precision);
+}
+
+function getAccuracy():Float
+{
+	var accuracy:Float = totalNotesHitWeighted / totalNotesPlayed * 100;
+	if (!Math.isFinite(accuracy)) return 0;
+	return accuracy;
+}
+
+// Thresholds collapsed from the original's redundant cascade (e.g. it
+// checked >=99.90/>=99.80/>=99.70 as three separate branches all producing
+// "AAA." - only the lowest bound of each group matters).
+function generateRanking():String
+{
+	var misses:Int = tallyMissed;
+	var bads:Int = tallyBad;
+	var shits:Int = tallyShit;
+	var goods:Int = tallyGood;
+	var accuracy:Float = getAccuracy();
+
+	var ranking:String = 'N/A';
+	if (misses == 0 && bads == 0 && shits == 0 && goods == 0) ranking = '(MFC)';
+	else if (misses == 0) ranking = '(GFC)';
+	else if (misses < 10) ranking = '(SDCB)';
+	else ranking = '(Clear)';
+
+	if (accuracy >= 99.9935) ranking += ' AAAAA.';
+	else if (accuracy >= 99.955) ranking += ' AAAA.';
+	else if (accuracy >= 99.70) ranking += ' AAA.';
+	else if (accuracy >= 93) ranking += ' AA.';
+	else if (accuracy >= 80) ranking += ' A.';
+	else if (accuracy >= 70) ranking += ' B.';
+	else if (accuracy >= 60) ranking += ' C.';
+	else ranking += ' D.';
+
+	if (accuracy == 0) ranking = 'N/A';
+	return ranking;
+}
+
+function generateScoreString():String
+{
+	var score:Int = game.songScore;
+	var misses:Int = tallyMissed + tallyBad + tallyShit;
+	var accuracy:Float = getAccuracy();
+
+	var textString:String = 'NPS: ' + nps + ' | ';
+	textString += 'Score: ' + score + ' | Combo Breaks:' + misses + ' | Accuracy:' + truncateFloat(accuracy, 2) + '% | ' + generateRanking();
+	return textString;
+}
+
+function onSongRetry()
+{
+	tallySick = 0;
+	tallyGood = 0;
+	tallyBad = 0;
+	tallyShit = 0;
+	tallyMissed = 0;
+	totalNotesHitWeighted = 0;
+	totalNotesPlayed = 0;
+	notesHitArray = [];
+	nps = 0;
+}
+
 // --- Camera focus/zoom events, ported with real tweening (Psych's native
 // "Camera Follow Pos"/"Add Camera Zoom" only snap instantly) - see
 // PORT_INFO.md for the FocusCamera/ZoomCamera event format. ---
@@ -161,4 +353,11 @@ function decayCameraBop(elapsed:Float)
 function onUpdate(elapsed:Float)
 {
 	decayCameraBop(elapsed);
+
+	if (scoreTxt2021 != null) scoreTxt2021.text = generateScoreString();
+
+	var currentTime:Float = Conductor.songPosition;
+	while (notesHitArray.length > 0 && notesHitArray[notesHitArray.length - 1] + 1000 < currentTime)
+		notesHitArray.pop();
+	nps = notesHitArray.length;
 }
