@@ -1,0 +1,8 @@
+{
+	"image": "qt",
+	"position": [0, 0],
+	"scale": 0.65,
+	"idle_anim": "qt_idle",
+	"confirm_anim": "qt_hey",
+	"flipX": false
+}

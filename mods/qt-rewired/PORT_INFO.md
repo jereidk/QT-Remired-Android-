@@ -151,10 +151,15 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   offset original — ver limitación 10 sobre la precisión de este overlay. Al
   terminar, llama de nuevo a `game.startCountdown()` (guard
   `hasPlayedIntroCutscene`, mismo patrón que `hasPlayedOutro`).
+- **Portrait de QT en el Story Menu** (`images/menucharacters/qt.json`,
+  atlas Sparrow real del mod `images/storymenu/props/QT.xml`+`.png`, con
+  animaciones `qt_idle`/`qt_hey` — ver limitación 6 sobre el `scale`
+  estimado sin verificación visual).
 - **Corregido un bug latente de BOM UTF-8** en varios `spritemap1.json` (QT,
-  sierra, GF-QT, BF-QT, BF-QT-erect, PICO/all) que venían con marca de orden
-  de bytes del exportador de Adobe Animate — potencialmente rompía el
-  parseo JSON de Haxe en runtime. Verificado y limpiado en todo el mod.
+  sierra, GF-QT, BF-QT, BF-QT-erect, PICO/all) y en el atlas Sparrow del
+  portrait de story menu (`QT.xml`) que venían con marca de orden de bytes
+  del exportador de Adobe Animate — potencialmente rompía el parseo
+  JSON/XML de Haxe en runtime. Verificado y limpiado en todo el mod.
 
 ## Limitaciones conocidas / trabajo pendiente
 
@@ -214,8 +219,19 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    resto del week (`"difficulties": "easy,normal,hard"`), se mapeó
    `erect→(easy y el archivo sin sufijo)` y `nightmare→hard`. Cosmético: el
    selector de dificultad dirá "Easy/Normal/Hard" en vez de "Erect/Nightmare".
-6. **Portrait de Story Menu genérico** (`weekCharacters` cae al personaje BF
-   por defecto — no hay arte de menú específico de QT/KB/Pico convertido).
+6. **Portrait de Story Menu solo para QT, y sin verificación visual.** El
+   paquete del mod trae un atlas Sparrow real para esto
+   (`images/storymenu/props/QT.xml`+`.png`, con `qt_idle`/`qt_hey` — el
+   único personaje de la semana que lo tiene), portado a
+   `images/menucharacters/qt.json` (`weekCharacters: ["qt","bf","gf"]`, slots
+   BF/GF usan los personajes de menú vanilla de Psych ya que no hay arte
+   propio para ellos en el mod). El `scale: 0.65` es una estimación por
+   proporción de tamaño de frame contra `Menu_BF` — no se pudo verificar
+   visualmente en este entorno (no hay forma de compilar/ejecutar el juego
+   acá), así que puede necesitar ajuste. También había un
+   `images/storymenu/titles/weekqt.png` en el paquete original, pero Psych
+   no tiene un slot de imagen para el título de semana en el story menu (es
+   texto plano, `txtWeekTitle`), así que no tiene a dónde ir.
 7. **`SetCameraBop` ya usa la curva de decaimiento real** (ver "Estado
    actual"), con una única diferencia deliberada: el original mantiene el
    zoom "base" (el que fijan los tweens de `ZoomCamera`) completamente
@@ -270,8 +286,11 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
 Las 3 canciones que tienen cutscene en el original (Blissful base, Blissful
 erect, Blissful pico) ya están portadas casi por completo. Lo que queda:
 
-1. Portrait de Story Menu específico para QT/KB/Pico (en vez de caer al
-   genérico de BF).
+1. Verificar/ajustar visualmente el `scale`/`position` del portrait de QT en
+   el Story Menu (limitación 6 — estimado por proporción, sin poder
+   compilar/ejecutar el juego en este entorno). KB y Pico no tienen arte de
+   story menu en el paquete original, así que no hay nada que portar para
+   ellos ahí.
 2. Subtítulos y mecanismo de skip para las 3 cutscenes (limitaciones 3/8) —
    requeriría un sistema de subtítulos propio en HScript ya que Psych no
    trae uno nativo.
