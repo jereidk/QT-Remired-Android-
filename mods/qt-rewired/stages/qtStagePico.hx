@@ -159,6 +159,112 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 	else if (eventName == 'SetCameraBop') setCameraBop(value1, value2);
 }
 
+// --- Blissful Pico intro cutscene, ported from blissful-pico.hxc's
+// onCountdownStart(). Runs once before the real countdown via the
+// onStartCountdown/Function_Stop hook (same interception pattern the
+// onEndSong cutscenes use elsewhere). Camera choreography, dad's
+// "still"/"intro" frame-label poses (already on the qt atlas), a standalone
+// overlay for bf's "introbl" pose, and the hi_cutie/picoWave/introSong-pico
+// sound cues are kept. Subtitles, the skip-key prompt, the GF beat-synced
+// head bop and the 1%-chance easter egg branch (which even opens a YouTube
+// URL in the original) are all dropped - see PORT_INFO.md.
+var hasPlayedIntroCutscene:Bool = false;
+var picoOverlay:FlxAnimate;
+
+function onStartCountdown():Dynamic
+{
+	if (hasPlayedIntroCutscene) return null;
+	hasPlayedIntroCutscene = true;
+	playIntroCutscene();
+	return Function_Stop;
+}
+
+function dadFocusX():Float return game.dad.getMidpoint().x + 150 + game.dad.cameraPosition[0] + game.opponentCameraOffset[0];
+function dadFocusY():Float return game.dad.getMidpoint().y - 100 + game.dad.cameraPosition[1] + game.opponentCameraOffset[1];
+function playerFocusX():Float return game.boyfriend.getMidpoint().x - 100 - (game.boyfriend.cameraPosition[0] - game.boyfriendCameraOffset[0]);
+function playerFocusY():Float return game.boyfriend.getMidpoint().y - 100 + game.boyfriend.cameraPosition[1] + game.boyfriendCameraOffset[1];
+
+function playIntroCutscene()
+{
+	game.inCutscene = true;
+	game.isCameraOnForcedPos = true;
+	game.camHUD.visible = false;
+	game.camHUD.alpha = 0;
+
+	if (game.dad.atlas != null)
+	{
+		game.dad.atlas.anim.addByFrameLabel('still', 'hi cutie', 24, false);
+		game.dad.atlas.anim.addByFrameLabel('intro', 'hi cutie', 24, false);
+	}
+
+	// pico-qt's own character uses the vanilla Pico sprite for gameplay (the
+	// mod's own Pico atlas only has cutscene-specific poses, no base sing/idle
+	// - see PORT_INFO.md), so this pose is a standalone FlxAnimate overlay
+	// positioned at bf's anchor + the original animation's own offset. Not
+	// pixel-exact against the vanilla rig - documented approximation.
+	picoOverlay = new FlxAnimate(0, 0);
+	picoOverlay.showPivot = false;
+	Paths.loadAnimateAtlas(picoOverlay, 'characters/PICO/all');
+	picoOverlay.anim.addByFrameLabel('introbl', 'blissful intro', 24, false);
+	picoOverlay.visible = false;
+	game.add(picoOverlay);
+
+	if (cameraFollowTween != null) cameraFollowTween.cancel();
+	if (cameraZoomTween != null) cameraZoomTween.cancel();
+	game.camFollow.setPosition(dadFocusX(), dadFocusY() - 235);
+
+	FlxG.sound.play(Paths.music('gameplay/introSong/introSong-pico'), 0.1);
+	FlxG.camera.fade(0xFF000000, 2.75, true, null, true);
+
+	game.dad.playAnim('still', true, true);
+
+	tweenCamPos(dadFocusX(), dadFocusY(), 2.75, FlxEase.expoOut);
+	tweenCamZoomAbs(1.1875, 2.75, FlxEase.expoOut);
+
+	new FlxTimer().start(0.5, function(_) game.dad.playAnim('intro', true, false));
+
+	new FlxTimer().start(0.98, function(_) FlxG.sound.play(Paths.sound('gameplay/countdown/hi_cutie'), 1));
+
+	new FlxTimer().start(3.5, function(_)
+	{
+		tweenCamPos(playerFocusX() + 100, playerFocusY(), 3, FlxEase.quadInOut);
+		game.boyfriend.visible = false;
+		picoOverlay.setPosition(game.boyfriend.x + 55, game.boyfriend.y + 16.87);
+		picoOverlay.visible = true;
+		picoOverlay.anim.play('introbl', true);
+	});
+
+	new FlxTimer().start(4.15, function(_) FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/pico/introCutscene/picoWave')));
+
+	new FlxTimer().start(6.35, function(_) tweenCamZoomAbs(1.25, 1.5, FlxEase.quadInOut));
+
+	new FlxTimer().start(11, function(_)
+	{
+		game.boyfriend.visible = true;
+		if (picoOverlay != null)
+		{
+			picoOverlay.visible = false;
+			game.remove(picoOverlay);
+		}
+		game.camHUD.visible = true;
+		game.camHUD.alpha = 0;
+		FlxTween.tween(game.camHUD, {alpha: 1}, 1, {ease: FlxEase.smoothStepInOut});
+		game.startCountdown();
+	});
+}
+
+function tweenCamPos(x:Float, y:Float, duration:Float, ease:Float->Float)
+{
+	if (cameraFollowTween != null) cameraFollowTween.cancel();
+	cameraFollowTween = FlxTween.tween(game.camFollow, {x: x, y: y}, duration, {ease: ease});
+}
+
+function tweenCamZoomAbs(mult:Float, duration:Float, ease:Float->Float)
+{
+	if (cameraZoomTween != null) cameraZoomTween.cancel();
+	cameraZoomTween = FlxTween.tween(FlxG.camera, {zoom: game.defaultCamZoom * mult}, duration, {ease: ease});
+}
+
 // --- Camera focus/zoom events, ported with real tweening (Psych's native
 // "Camera Follow Pos"/"Add Camera Zoom" only snap instantly) - see
 // PORT_INFO.md for the FocusCamera/ZoomCamera event format. ---

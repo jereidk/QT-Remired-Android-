@@ -21,8 +21,10 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   ese atlas base en el paquete del mod.
 - `stages/{qtStage,qtStageKiller,qtStageCityErect,qtStageObliteratedErect,
   qtStagePico,qtStage2021}.json`+`.hx` (HScript) — anchors de personajes,
-  zoom y fondos de cada stage. `qtStage` y `qtStageCityErect` sí tienen
-  cutscene de fin de canción (ver más abajo); el resto todavía no.
+  zoom y fondos de cada stage. `qtStage` y `qtStageCityErect` tienen cutscene
+  de FIN de canción; `qtStagePico` tiene cutscene de INICIO (antes del
+  countdown); `qtStageKiller`/`qtStageObliteratedErect`/`qtStage2021` no
+  tienen ninguna (ver más abajo y limitación 9).
 - `data/{blissful,obliterated,blissful-erect,obliterated-erect,
   obliterated-legacy,blissful-pico,blissful-2021}/*.json` — charts convertidos
   del formato plano `{t,d,l,p,k}` del mod original al formato de secciones de
@@ -111,10 +113,27 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   runtime con `addByFrameLabel` — mismo mecanismo que el prop `cars`. Se
   omiten los subtítulos (`showoff.srt`, Psych no tiene sistema nativo de
   subtítulos) y el prompt de "presiona para saltar" (ver limitación 8).
+- **Cutscene de intro de Blissful-pico**, portada desde `blissful-pico.hxc`'s
+  `onCountdownStart()` — a diferencia de las otras dos (que interceptan el
+  FIN de canción), esta corre ANTES del countdown real, interceptado vía
+  `onStartCountdown`/`Function_Stop` (mismo patrón, hook distinto — Psych
+  también soporta cancelar el countdown así). En `qtStagePico.hx`: fade
+  desde negro, música `introSong-pico` a volumen 0.1, coreografía de cámara
+  (mismas fórmulas de foco que usa `PlayState.moveCamera` nativo de Psych
+  para dad/boyfriend, replicadas para calcular los puntos de foco exactos del
+  original), la pose `still`→`intro` de dad (etiquetas de frame en el atlas
+  `qt` ya existente, sin intercambio de personaje esta vez), el sonido
+  `hi_cutie`, y el sonido `picoWave`. La pose `introbl` de BF se muestra con
+  un `FlxAnimate` standalone cargado del atlas propio del mod
+  (`characters/PICO/all`, que sí trae esta pose, a diferencia del atlas base
+  de canto que falta — ver limitación 1) posicionado en el ancla de BF más el
+  offset original — ver limitación 10 sobre la precisión de este overlay. Al
+  terminar, llama de nuevo a `game.startCountdown()` (guard
+  `hasPlayedIntroCutscene`, mismo patrón que `hasPlayedOutro`).
 - **Corregido un bug latente de BOM UTF-8** en varios `spritemap1.json` (QT,
-  sierra, GF-QT, BF-QT, BF-QT-erect) que venían con marca de orden de bytes
-  del exportador de Adobe Animate — potencialmente rompía el parseo JSON de
-  Haxe en runtime. Verificado y limpiado en todo el mod.
+  sierra, GF-QT, BF-QT, BF-QT-erect, PICO/all) que venían con marca de orden
+  de bytes del exportador de Adobe Animate — potencialmente rompía el
+  parseo JSON de Haxe en runtime. Verificado y limpiado en todo el mod.
 
 ## Limitaciones conocidas / trabajo pendiente
 
@@ -173,11 +192,21 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    cutscene siempre se reproduce completa, ~14s. Solo se copió el audio en
    inglés (el original también trae una variante en español para
    `qt_erect_ending`, no incluida).
-9. **Blissful-pico y Blissful-2021 no tienen cutscene final propia portada
-   aún.** Blissful-pico sí tiene una en el original (referencia a un sonido
-   `picoWave`, sin investigar en detalle); Blissful-2021 y Obliterated (base)
-   confirmado que NO tienen ninguna cutscene de fin de canción en el script
-   original (`hasPlayedOutro`/`onSongEnd` no aparecen en sus `.hx`/`.hxc`).
+9. **Blissful-2021 y Obliterated (base) no tienen ninguna cutscene** —
+   confirmado en el script original (`hasPlayedOutro`/`onSongEnd`/
+   `onCountdownStart` no aparecen en sus `.hx`/`.hxc`), no falta nada por
+   portar ahí.
+10. **Overlay de la pose `introbl` de BF en la cutscene de Blissful-pico no
+    es pixel-perfect.** `pico-qt` usa el sprite vanilla de Pico para el
+    gameplay normal (limitación 1), así que esta pose (que sí viene en el
+    atlas propio del mod) se muestra con un `FlxAnimate` standalone
+    superpuesto, posicionado en `bf.x/bf.y` + el offset original
+    `(55, 16.87)` — una aproximación razonable pero no una réplica exacta de
+    cómo se vería con el rig Animate real del motor moderno (proporciones/
+    pivote pueden diferir levemente). Tampoco se replicó el bop de GF
+    sincronizado a los beats del `introSong-pico` (103 BPM) que tiene el
+    original vía un `Conductor` secundario — GF se queda en su pose idle
+    normal durante estos ~11s.
 
 ## Assets de origen
 
@@ -189,21 +218,21 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
 
 ## Próximos pasos sugeridos (en orden)
 
-1. Investigar y portar la cutscene final de Blissful-pico (referencia a un
-   sonido `picoWave` encontrada, no investigada en detalle todavía).
-2. Cutscene de intro completa de Blissful base (sprite de QT transformándose
+1. Cutscene de intro completa de Blissful base (sprite de QT transformándose
    + bus), en vez de la versión simplificada (fade + spotlight + sfx) que hay
-   ahora — Blissful-erect ya tiene su cutscene final casi fiel (ver "Estado
-   actual" y limitación 8).
-3. Portrait de Story Menu específico para QT/KB/Pico (en vez de caer al
+   ahora — Blissful-erect y Blissful-pico ya tienen sus cutscenes propias
+   casi fieles (ver "Estado actual" y limitaciones 8/10).
+2. Portrait de Story Menu específico para QT/KB/Pico (en vez de caer al
    genérico de BF).
-4. `blackIn`/`cutsceneVideo`/`fadeStart` (eventos de Obliterated/legacy aún
-   sin portar, relacionados con la cutscene completa del punto 2).
-5. Curva de decaimiento exacta para `SetCameraBop` (actualmente es un tween
+3. `blackIn`/`cutsceneVideo`/`fadeStart` (eventos de Obliterated/legacy aún
+   sin portar, relacionados con la cutscene completa del punto 1).
+4. Curva de decaimiento exacta para `SetCameraBop` (actualmente es un tween
    de ida y vuelta de duración fija, no la exponencial continua del original).
-6. Subtítulos y mecanismo de skip para la cutscene final de Blissful-erect
+5. Subtítulos y mecanismo de skip para la cutscene final de Blissful-erect
    (ver limitación 8) — requeriría un sistema de subtítulos propio en HScript
    ya que Psych no trae uno nativo.
+6. Overlay de la pose `introbl` de Blissful-pico más preciso (ver limitación
+   10) y/o bop de GF sincronizado a los beats de `introSong-pico`.
 
 ## Notas de implementación por variante
 
