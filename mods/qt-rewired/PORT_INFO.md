@@ -195,11 +195,22 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   atlas Sparrow real del mod `images/storymenu/props/QT.xml`+`.png`, con
   animaciones `qt_idle`/`qt_hey` — ver limitación 6 sobre el `scale`
   estimado sin verificación visual).
+- **Transformación de dad a mitad de Blissful-2021** (`qt-legacy` →
+  `qt-kb-legacy`, un tercer personaje "QT + KillerByte (Legacy)"). A
+  diferencia de las otras transformaciones del mod, esta es un atlas Sparrow
+  clásico genuino y autosuficiente (`2021/qt-kb.png`+`.xml`, igual de simple
+  que `qt-legacy` — nada de `addByFrameLabel`/intercambio de atlas Animate
+  necesario). En el original (`blissful-2021.hx`) el intercambio está
+  hardcodeado a `onBeatHit(beat==287)`, no es un evento del chart; portado
+  como un evento nativo `Change Character` inyectado directamente en
+  `events.json` en el tiempo equivalente (287 beats × 60000/138 BPM ms —
+  esta canción tiene tempo constante, sin cambios de BPM). Es un intercambio
+  de un solo sentido (no vuelve a `qt-legacy`), igual que el original.
 - **Corregido un bug latente de BOM UTF-8** en varios `spritemap1.json` (QT,
-  sierra, GF-QT, BF-QT, BF-QT-erect, PICO/all) y en el atlas Sparrow del
-  portrait de story menu (`QT.xml`) que venían con marca de orden de bytes
-  del exportador de Adobe Animate — potencialmente rompía el parseo
-  JSON/XML de Haxe en runtime. Verificado y limpiado en todo el mod.
+  sierra, GF-QT, BF-QT, BF-QT-erect, PICO/all) y en dos atlas Sparrow más
+  (`storymenu/props/QT.xml`, `2021/qt-kb.xml`) que venían con marca de
+  orden de bytes del exportador de Adobe Animate — potencialmente rompía el
+  parseo JSON/XML de Haxe en runtime. Verificado y limpiado en todo el mod.
 
 ## Limitaciones conocidas / trabajo pendiente
 
@@ -341,6 +352,23 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
     personaje a un estado "tsundere" después. Portar solo el fundido a negro
     inicial sin el resto dejaría una apertura sin ningún pago visual —
     mismo criterio que ya se aplicó a `cutsceneVideo`/`fadeStart`.
+13. **HUD estilo "Kade Engine 2021" de Blissful-2021 no portado** —
+    `blissful-2021.hx` reemplaza por completo el HUD nativo con uno propio:
+    texto de score/precisión/ranking con markup de colores (fórmulas de
+    ranking/accuracy/combo-breaks propias, no las de Psych), un popup de
+    diferencia en ms en cada nota acertada, contador de NPS, y un watermark
+    "KE 1.4.2" — toda la temática del nombre "Blissful 2021" (una nostalgia
+    del HUD clásico de Kade Engine). No se portó por el riesgo de tener que
+    engancharse a la lógica interna de rating/combo de Psych
+    (`goodNoteHit`/`popUpScore`) sin poder verificar en este entorno si
+    expone lo necesario (el juicio/diferencia en ms de cada nota) de forma
+    segura — a diferencia del resto del port, que reusó únicamente APIs ya
+    comprobadas en este mismo código. **Sí se portó** la transformación de
+    personaje que vive en el mismo script (ver "Estado actual"). **A
+    propósito NO se portó** `handleFakeLag()`, una función que quema CPU al
+    azar para simular lag de forma intencional como chiste/nostalgia del
+    motor viejo — replicarla solo gastaría batería/rendimiento sin ningún
+    beneficio para quien juega.
 
 ## Assets de origen
 
@@ -387,6 +415,15 @@ base/legacy) ya están portadas. Lo que queda:
    separado `kb_export/kb_erect_intro`, `animType: "symbol"`) — ambas
    omitidas por bajo beneficio visual frente al riesgo de otro overlay
    standalone sin verificación visual posible.
+8. HUD estilo "Kade Engine 2021" de Blissful-2021 (limitación 13) — score/
+   precisión/ranking con markup de colores, popup de ms por nota, contador
+   de NPS, watermark "KE 1.4.2". Antes de intentar esto habría que verificar
+   qué datos expone realmente `goodNoteHit`/`noteMiss` a HScript en esta
+   versión de Psych (¿el objeto `note` trae el juicio/diferencia en ms ya
+   calculados, o habría que recalcularlos a mano replicando la lógica
+   interna de `popUpScore`?). NO incluir `handleFakeLag()` bajo ninguna
+   circunstancia — es una función que quema CPU a propósito, sin ningún
+   beneficio para quien juega.
 
 ## Notas de implementación por variante
 
