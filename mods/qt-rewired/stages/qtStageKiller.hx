@@ -1,6 +1,9 @@
 import openfl.display.BlendMode;
 import hxcodec.flixel.FlxVideo;
 import substates.GameOverSubstate;
+import states.PlayState;
+import backend.Song;
+import states.LoadingState;
 
 // --- Background layers ---
 var tvStaticLeft:FlxSprite;
@@ -300,6 +303,24 @@ function onSongRetry()
 	FlxTween.cancelTweensOf(blackScreen);
 	blackScreen.alpha = 1;
 	sawInstakillDeath = false;
+}
+
+// Neither Obliterated nor Obliterated-legacy (this file is shared by both)
+// has an outro cutscene, so a win redirects to the "QT-Rewired" master menu
+// song immediately instead of Psych's real Freeplay/Story Mode - see
+// qtStage.hx for the full rationale.
+function onEndSong():Dynamic
+{
+	returnToQtRewiredMenu();
+	return Function_Stop;
+}
+
+function returnToQtRewiredMenu()
+{
+	PlayState.SONG = Song.loadFromJson('qt-rewired', 'qt-rewired');
+	PlayState.isStoryMode = false;
+	FlxG.sound.music.volume = 0;
+	LoadingState.loadAndSwitchState(new PlayState());
 }
 
 // A distinct mood for dying to an instakill sawblade hit vs a normal miss -

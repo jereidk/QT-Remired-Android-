@@ -11,6 +11,12 @@ fue reconstruido usando las convenciones reales de mods de Psych (ver
 
 ## Estado actual: las 7 canciones/variantes del mod, jugables
 
+**Nota sobre cómo se accede a ellas**: ya no aparecen directamente en el
+Freeplay/Story Mode real de Psych — ahora se llega a las 7 vía una única
+entrada "QT-Rewired" que abre un menú custom construido dentro de una
+canción-señuelo. Ver la sección "Sistema de menú custom 'QT-Rewired'" más
+abajo para el detalle completo de cómo y por qué.
+
 Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
 - `characters/{qt,bf-qt,gf-qt,kb,bf-qt-erect,pico-qt,qt-legacy}.json` —
   personajes reconstruidos al schema `CharacterFile` de Psych. La mayoría usan
@@ -339,6 +345,99 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   (`storymenu/props/QT.xml`, `2021/qt-kb.xml`) que venían con marca de
   orden de bytes del exportador de Adobe Animate — potencialmente rompía el
   parseo JSON/XML de Haxe en runtime. Verificado y limpiado en todo el mod.
+
+## Sistema de menú custom "QT-Rewired" (reemplaza el Freeplay real)
+
+Por pedido explícito del usuario, las 7 canciones/variantes **ya NO
+aparecen directamente en el Freeplay/Story Mode real de Psych**. En su
+lugar, `weeks/QT.json` ahora lista una única entrada, **"QT-Rewired"**
+(ícono `qt`), que es en realidad una canción-señuelo (`data/qt-rewired/`,
+notas vacías, instrumental reciclado de `introSong-default.ogg`,
+`stage: qtStageMenu`) cuyo único propósito es ser secuestrada por
+`stages/qtStageMenu.hx` para mostrar un menú completo construido a mano en
+HScript: pantalla de título → menú principal → selector de canción con
+ícono/dificultad — imitando el flujo de menús del mod original, en vez de
+usar las pantallas reales de Psych (que, se confirmó leyendo el código
+fuente, no tienen NINGÚN gancho de HScript — ver más abajo).
+
+**Por qué esto es fundamentalmente distinto a todo lo demás en este port**:
+todo lo anterior fue código aditivo dentro de canciones reales, verificado
+contra convenciones ya probadas. Esto es un sistema de navegación completo
+escrito desde cero (con su propia máquina de estados, su propio manejo de
+teclado, su propia lógica de carga de canciones) que **reemplaza el punto
+de entrada principal a las 7 canciones**. No se puede compilar/ejecutar en
+este entorno para verificarlo, y a diferencia de una feature aditiva, un
+bug de lógica acá afecta la capacidad de jugar CUALQUIER canción del mod
+hasta que se corrija. El usuario fue advertido de este riesgo explícitamente
+y decidió proceder de todas formas.
+
+**Cómo funciona, técnicamente:**
+- `stages/qtStageMenu.hx`: `onStartCountdown()` devuelve `Function_Stop`
+  incondicionalmente (nunca arranca el countdown/gameplay real — mismo
+  patrón ya usado por las cutscenes de intro de las otras 6 canciones).
+  `onCreatePost()` esconde instantáneamente el HUD/personajes reales
+  (`game.healthBar.visible = false`, etc. — sin fundido, ya que nunca debían
+  verse) y arma los 3 sprites de pantalla de una sola vez (`FlxText`s +
+  `HealthIcon`s standalone, todos con `scrollFactor.set()` para quedar fijos
+  a la pantalla sin importar el zoom de cámara), alternando cuál se ve con
+  `showOnly(state)` en vez de crear/destruir en cada transición.
+- Navegación: `keyJustPressed('ui_up'/'ui_down'/'ui_left'/'ui_right'/
+  'accept'/'back')` — confirmado en `source/backend/Controls.hx` que estos
+  son nombres de bind reales (`ui_up`→`justPressed('ui_up')`, etc.), y en
+  `source/psychlua/HScript.hx` que `keyJustPressed()` cae a
+  `Controls.instance.justPressed(name)` para cualquier nombre no
+  hardcodeado en el switch (`left`/`down`/`up`/`right`, que SÍ están
+  hardcodeados ahí pero mapean a las teclas de NOTA, no de UI — por eso se
+  usa el prefijo `ui_`).
+- **Lanzar una canción real**: `launchSong()` replica EXACTAMENTE lo que
+  hace `FreeplayState.hx` al confirmar una canción (confirmado leyendo su
+  código fuente): `PlayState.SONG = Song.loadFromJson(jsonName, folder);
+  PlayState.isStoryMode = false; PlayState.storyDifficulty = diff;
+  FlxG.sound.music.volume = 0; LoadingState.loadAndSwitchState(new
+  PlayState());` — mismas clases (`backend.Song`, `states.LoadingState`,
+  `states.PlayState`), mismo orden, sin inventar nada. Las 7 canciones
+  siguen existiendo exactamente igual en `data/`/`songs/` (`blissful`,
+  `obliterated`, etc.) — solo dejaron de estar listadas en
+  `weeks/QT.json`, pero `Song.loadFromJson` las carga directo por nombre de
+  carpeta, sin pasar por esa lista en absoluto.
+- **Volver al menú custom al ganar una canción real**: cada una de las 6
+  canciones reales ahora tiene `returnToQtRewiredMenu()` (misma lógica que
+  `launchSong()` pero apuntando a `qt-rewired`), llamada en vez de
+  `game.endSong()`. Esto es necesario porque `game.endSong()` internamente
+  llama `MusicBeatState.switchState(new FreeplayState())`/`StoryMenuState()`
+  hardcodeado (confirmado leyendo `PlayState.hx`) — no hay forma de
+  redirigir SU destino desde HScript, así que en vez de llamarlo, cada stage
+  ahora evita `endSong()` por completo:
+  - `qtStage.hx`/`qtStageCityErect.hx` (Blissful/Blissful-erect, que sí
+    tienen cutscene de final): se cambió el `game.endSong();` al final de
+    `finishOutroCutscene()`/`finishEndingCutscene()`.
+  - `qtStageKiller.hx` (Obliterated/Obliterated-legacy),
+    `qtStageObliteratedErect.hx`, `qtStagePico.hx`, `qtStage2021.hx`
+    (ninguna tenía cutscene de final): se agregó un `onEndSong()` nuevo que
+    llama `returnToQtRewiredMenu()` directo y devuelve `Function_Stop`.
+- **La única costura que NO se pudo cerrar**: morir en una canción real y
+  presionar BACK en la pantalla de Game Over. `GameOverSubstate.update()`
+  maneja BACK de forma nativa (`MusicBeatState.switchState(new
+  StoryMenuState())`/`FreeplayState()` según `PlayState.isStoryMode`, sin
+  pasar por ningún hook cancelable — mismo límite ya documentado en la
+  limitación de "fakeout death"). Lo mismo aplica a "salir" desde el menú de
+  pausa. En ambos casos el jugador cae en el Freeplay REAL de Psych — pero
+  como `weeks/QT.json` ahora solo tiene la entrada "QT-Rewired", ese
+  Freeplay real ya no muestra las 7 canciones sueltas, solo la puerta de
+  entrada al menú custom — un paso extra, no un callejón sin salida.
+- **Por qué NO se pudo hacer lo mismo con la cápsula animada de Story Menu,
+  el desbloqueo progresivo, ni los iconos/álbum de Freeplay** (limitación
+  15): se confirmó con grep directo que `StoryMenuState.hx`,
+  `FreeplayState.hx`, `MainMenuState.hx`, y hasta `MusicBeatState.hx` (la
+  clase base de TODOS los estados) no tienen NINGUNA referencia a
+  `callOnScripts`/`hscriptArray`/`initHScript` — cero resultados. Un
+  HScript necesita que algo lo invoque, y nada en esos 3 estados invoca
+  nunca ningún script. Por eso la "pantalla de título"/"menú principal"
+  de este sistema son recreaciones estilizadas DENTRO de la canción
+  `qt-rewired` (que sí corre en `PlayState`, con soporte de HScript
+  completo), no reemplazos de las pantallas reales de Psych — esas
+  pantallas reales siguen siendo el único punto de entrada al juego mismo
+  y a la entrada "QT-Rewired".
 
 ## Limitaciones conocidas / trabajo pendiente
 

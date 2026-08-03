@@ -1,0 +1,14 @@
+{
+	"song": {
+		"song": "QT-Rewired",
+		"notes": [],
+		"events": [],
+		"bpm": 120,
+		"needsVoices": false,
+		"speed": 1,
+		"player1": "bf-qt",
+		"player2": "qt",
+		"gfVersion": "gf-qt",
+		"stage": "qtStageMenu"
+	}
+}

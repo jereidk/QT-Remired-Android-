@@ -1,4 +1,7 @@
 import openfl.display.BlendMode;
+import states.PlayState;
+import backend.Song;
+import states.LoadingState;
 
 var sky:FlxSprite;
 var stars:FlxSprite;
@@ -267,7 +270,17 @@ function finishEndingCutscene()
 	activeCutsceneFinish = null;
 	game.inCutscene = false;
 	if (outroMusic != null) outroMusic.stop();
-	game.endSong();
+	returnToQtRewiredMenu();
+}
+
+// Redirects back into the "QT-Rewired" master menu song instead of Psych's
+// real Freeplay/Story Mode - see qtStage.hx for the full rationale.
+function returnToQtRewiredMenu()
+{
+	PlayState.SONG = Song.loadFromJson('qt-rewired', 'qt-rewired');
+	PlayState.isStoryMode = false;
+	FlxG.sound.music.volume = 0;
+	LoadingState.loadAndSwitchState(new PlayState());
 }
 
 function tweenCamPos(x:Float, y:Float, duration:Float, ease:Float->Float)

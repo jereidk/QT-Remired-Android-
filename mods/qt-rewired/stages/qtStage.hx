@@ -1,4 +1,7 @@
 import openfl.display.BlendMode;
+import states.PlayState;
+import backend.Song;
+import states.LoadingState;
 
 var wall:FlxSprite;
 var tvShadow:FlxSprite;
@@ -180,7 +183,21 @@ function finishOutroCutscene()
 	game.camHUD.alpha = 1;
 	game.camHUD.visible = true;
 	game.inCutscene = false;
-	game.endSong();
+	returnToQtRewiredMenu();
+}
+
+// Every song now redirects back into the "QT-Rewired" master menu song
+// instead of Psych's real Freeplay/Story Mode on a win (see
+// stages/qtStageMenu.hx and PORT_INFO.md) - bypasses game.endSong()'s own
+// native transition entirely rather than trying to redirect its hardcoded
+// FreeplayState/StoryMenuState destination, which isn't customizable from
+// HScript.
+function returnToQtRewiredMenu()
+{
+	PlayState.SONG = Song.loadFromJson('qt-rewired', 'qt-rewired');
+	PlayState.isStoryMode = false;
+	FlxG.sound.music.volume = 0;
+	LoadingState.loadAndSwitchState(new PlayState());
 }
 
 function tweenCamPos(x:Float, y:Float, duration:Float, ease:Float->Float)

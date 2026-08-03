@@ -1,12 +1,6 @@
 {
 	"songs": [
-		["Blissful", "qt", [255, 105, 180]],
-		["Obliterated", "kb", [200, 30, 30]],
-		["Blissful Erect", "qt", [200, 60, 160]],
-		["Obliterated Erect", "kb", [160, 30, 60]],
-		["Obliterated Legacy", "kb", [140, 30, 30]],
-		["Blissful Pico", "qt", [255, 160, 190]],
-		["Blissful 2021", "qt-legacy", [255, 140, 200]]
+		["QT-Rewired", "qt", [255, 105, 180]]
 	],
 	"weekCharacters": ["qt", "bf", "gf"],
 	"weekBackground": "",

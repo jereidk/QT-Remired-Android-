@@ -1,4 +1,7 @@
 import openfl.display.BlendMode;
+import states.PlayState;
+import backend.Song;
+import states.LoadingState;
 
 var floorUnder:FlxSprite;
 var sky:FlxSprite;
@@ -295,6 +298,23 @@ function finishIntroCutscene()
 	game.camHUD.alpha = 0;
 	FlxTween.tween(game.camHUD, {alpha: 1}, 1, {ease: FlxEase.smoothStepInOut});
 	game.startCountdown();
+}
+
+// Blissful-pico only has an intro cutscene, no outro - a win redirects to
+// the "QT-Rewired" master menu song immediately instead of Psych's real
+// Freeplay/Story Mode - see qtStage.hx for the full rationale.
+function onEndSong():Dynamic
+{
+	returnToQtRewiredMenu();
+	return Function_Stop;
+}
+
+function returnToQtRewiredMenu()
+{
+	PlayState.SONG = Song.loadFromJson('qt-rewired', 'qt-rewired');
+	PlayState.isStoryMode = false;
+	FlxG.sound.music.volume = 0;
+	LoadingState.loadAndSwitchState(new PlayState());
 }
 
 function tweenCamPos(x:Float, y:Float, duration:Float, ease:Float->Float)

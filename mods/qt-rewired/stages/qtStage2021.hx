@@ -1,3 +1,7 @@
+import states.PlayState;
+import backend.Song;
+import states.LoadingState;
+
 var stageBack:FlxSprite;
 var floorSprite:FlxSprite;
 var tvs:FlxSprite;
@@ -225,6 +229,23 @@ function onSongRetry()
 	totalNotesPlayed = 0;
 	notesHitArray = [];
 	nps = 0;
+}
+
+// Blissful-2021 has no cutscenes at all (confirmed - see PORT_INFO.md) - a
+// win redirects to the "QT-Rewired" master menu song immediately instead of
+// Psych's real Freeplay/Story Mode - see qtStage.hx for the full rationale.
+function onEndSong():Dynamic
+{
+	returnToQtRewiredMenu();
+	return Function_Stop;
+}
+
+function returnToQtRewiredMenu()
+{
+	PlayState.SONG = Song.loadFromJson('qt-rewired', 'qt-rewired');
+	PlayState.isStoryMode = false;
+	FlxG.sound.music.volume = 0;
+	LoadingState.loadAndSwitchState(new PlayState());
 }
 
 // --- Camera focus/zoom events, ported with real tweening (Psych's native
