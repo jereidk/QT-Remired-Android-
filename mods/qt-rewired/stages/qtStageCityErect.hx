@@ -17,6 +17,14 @@ var car:FlxSprite;
 var overlayOverlay:FlxSprite;
 var overlayAdd:FlxSprite;
 
+// Pink "flash" overlay, ported from blissful-erect.hxc's pinkFlash/
+// triggerPinkFlash - used once during the intro cutscene and 3 more times
+// during regular gameplay (gameplayFlashTimes, checked against
+// Conductor.songPosition in onUpdate, same as the original).
+var pinkFlash:FlxSprite;
+var gameplayFlashTimes:Array<Float> = [116840, 202490, 226380];
+var currentFlashIndex:Int = 0;
+
 function onCreate()
 {
 	// Furthest back to closest, all behind the characters (zIndex < 100 in
@@ -115,6 +123,24 @@ function onCreatePost()
 	overlayAdd.blend = BlendMode.ADD;
 	overlayAdd.alpha = 0.15;
 	game.add(overlayAdd);
+
+	pinkFlash = new FlxSprite(0, 0);
+	pinkFlash.makeGraphic(Math.floor(FlxG.width * 2), Math.floor(FlxG.height * 2), 0xFFFF9BF6);
+	pinkFlash.blend = BlendMode.OVERLAY;
+	pinkFlash.scrollFactor.set(0, 0);
+	pinkFlash.screenCenter();
+	pinkFlash.alpha = 0;
+	pinkFlash.cameras = [game.camHUD];
+	game.add(pinkFlash);
+}
+
+function triggerPinkFlash(cams:Array<FlxCamera>)
+{
+	if (pinkFlash == null) return;
+	FlxTween.cancelTweensOf(pinkFlash);
+	pinkFlash.cameras = cams;
+	pinkFlash.alpha = 0.3;
+	FlxTween.tween(pinkFlash, {alpha: 0}, 1.4, {ease: FlxEase.linear});
 }
 
 function onEvent(eventName:String, value1:String, value2:String, strumTime:Float)
@@ -227,6 +253,129 @@ function tweenCamZoomAbs(mult:Float, duration:Float, ease:Float->Float)
 	cameraZoomTween = FlxTween.tween(FlxG.camera, {zoom: game.defaultCamZoom * mult}, duration, {ease: ease});
 }
 
+function dadFocusX():Float return game.dad.getMidpoint().x + 150 + game.dad.cameraPosition[0] + game.opponentCameraOffset[0];
+function dadFocusY():Float return game.dad.getMidpoint().y - 100 + game.dad.cameraPosition[1] + game.opponentCameraOffset[1];
+
+// --- Blissful Erect intro cutscene, ported from blissful-erect.hxc's
+// onCountdownStart(). Dad needs the qt-erect atlas again for its
+// "erectIntro1"/"erectIntro2" poses (frame labels, addByFrameLabel like the
+// ending cutscene) - swapped back to "qt" at the end since real gameplay
+// needs the normal singing character. Subtitles and the skip-key prompt are
+// dropped, same as the other cutscenes - see PORT_INFO.md. The original's
+// danceQT/QTErectDanceSprite overlay sprite (used during onCreate for the
+// caramelldansen section) isn't ported - this mod already handles that
+// section via the Change Character swap instead, a different but working
+// approach - see PORT_INFO.md.
+var hasPlayedIntroCutscene:Bool = false;
+var introMusic:Dynamic;
+
+function onStartCountdown():Dynamic
+{
+	if (hasPlayedIntroCutscene) return null;
+	hasPlayedIntroCutscene = true;
+	playIntroCutscene();
+	return Function_Stop;
+}
+
+function playIntroCutscene()
+{
+	game.inCutscene = true;
+	game.isCameraOnForcedPos = true;
+	if (cameraFollowTween != null) cameraFollowTween.cancel();
+	if (cameraZoomTween != null) cameraZoomTween.cancel();
+
+	game.camHUD.visible = false;
+	game.camHUD.alpha = 0;
+
+	game.triggerEvent('Change Character', 'dad', 'qt-erect', 0);
+	if (game.dad.atlas != null)
+	{
+		game.dad.atlas.anim.addByFrameLabel('erectIntro1', 'qt erect intro 1', 24, false);
+		game.dad.atlas.anim.addByFrameLabel('erectIntro2', 'qt erect intro 2', 24, false);
+	}
+	if (game.boyfriend.atlas != null) game.boyfriend.atlas.anim.addByFrameLabel('superHey', 'super hey', 24, false);
+
+	introMusic = FlxG.sound.play(Paths.music('gameplay/introSong/introSong-erect'), 0.2);
+
+	game.camFollow.setPosition(538, 500);
+	FlxG.camera.zoom = game.defaultCamZoom * 1.08;
+	FlxG.camera.fade(0xFF000000, 2.75, true, null, true);
+
+	var dad = game.dad;
+	var bf = game.boyfriend;
+
+	// Original freezes this on frame 0 until the 0.90s mark, then replays it
+	// for real. Not attempting the freeze here (uncertain whether pausing an
+	// individual FlxAnimate mid-play is safe in this API) - it just plays
+	// through once early, then replays at 0.90s, same as the "still" pose in
+	// Blissful-pico's intro - see PORT_INFO.md.
+	dad.playAnim('erectIntro1', true, false);
+	tweenCamPos(538, 923, 3.4, FlxEase.expoOut);
+	tweenCamZoomAbs(1.08, 3.4, FlxEase.expoOut);
+
+	new FlxTimer().start(0.90, function(_)
+	{
+		dad.playAnim('erectIntro1', true, false);
+		FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/qt_erect_intro_1'));
+	});
+
+	new FlxTimer().start(2.59, function(_)
+	{
+		tweenCamPos(510, 923, 3, FlxEase.expoOut);
+		tweenCamZoomAbs(1.16, 3, FlxEase.expoOut);
+	});
+
+	new FlxTimer().start(3.483, function(_)
+	{
+		tweenCamPos(1090, 931, 2.6, FlxEase.quartInOut);
+		tweenCamZoomAbs(1.30, 2.6, FlxEase.quartInOut);
+	});
+
+	new FlxTimer().start(4.341, function(_)
+	{
+		bf.playAnim('superHey', true, false);
+		FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/bf_erect_yeah'));
+	});
+
+	new FlxTimer().start(5.7, function(_)
+	{
+		tweenCamPos(1040, 931, 0.8, FlxEase.elasticOut);
+		tweenCamZoomAbs(1.16, 0.8, FlxEase.elasticOut);
+	});
+
+	new FlxTimer().start(5.74, function(_) triggerPinkFlash([FlxG.camera]));
+
+	new FlxTimer().start(6, function(_) dad.playAnim('erectIntro2', true, false));
+
+	new FlxTimer().start(6.25, function(_)
+	{
+		tweenCamPos(510, 923, 2.5, FlxEase.quartInOut);
+		tweenCamZoomAbs(1.16, 2.5, FlxEase.quartInOut);
+	});
+
+	new FlxTimer().start(7.1, function(_) FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/qt_erect_intro_2')));
+
+	new FlxTimer().start(8.4, function(_)
+	{
+		tweenCamPos(dadFocusX(), dadFocusY(), 4.5, FlxEase.quartInOut);
+		tweenCamZoomAbs(1.0, 4.5, FlxEase.quartInOut);
+	});
+
+	new FlxTimer().start(9.8, function(_)
+	{
+		// Swap dad back to the real singing character before gameplay starts.
+		game.triggerEvent('Change Character', 'dad', 'qt', 0);
+
+		game.inCutscene = false;
+		game.camHUD.visible = true;
+		game.camHUD.alpha = 0;
+		FlxTween.tween(game.camHUD, {alpha: 1}, 1, {ease: FlxEase.smoothStepInOut});
+
+		if (introMusic != null) introMusic.stop();
+		game.startCountdown();
+	});
+}
+
 // --- Camera focus/zoom events, ported with real tweening (Psych's native
 // "Camera Follow Pos"/"Add Camera Zoom" only snap instantly) - see
 // PORT_INFO.md for the FocusCamera/ZoomCamera event format. ---
@@ -330,11 +479,26 @@ function setCameraBop(value1:String, value2:String)
 var cameraBopMultiplier:Float = 1.0;
 var bopBaseZoom:Float = 1.0;
 
+// Opponent-strumline dimming during the caramelldansen window, ported
+// straight from blissful-erect.hxc's onBeatHit. Psych represents the
+// strumline as a group of individual notes (opponentStrums), not a single
+// object like the original's opponentStrumline, so each member is tweened.
+function fadeOpponentStrums(target:Float)
+{
+	for (strum in game.opponentStrums.members)
+		FlxTween.tween(strum, {alpha: target}, 1.5, {ease: FlxEase.quadInOut});
+}
+
 function onBeatHit()
 {
-	if (bopRate <= 0 || bopIntensity == 1.0) return;
-
 	var beat:Int = getVar('curBeat');
+
+	if (beat == 221) fadeOpponentStrums(0.3);
+	else if (beat == 348) fadeOpponentStrums(1);
+	else if (beat == 478) fadeOpponentStrums(0.3);
+	else if (beat == 544) fadeOpponentStrums(1);
+
+	if (bopRate <= 0 || bopIntensity == 1.0) return;
 	if (Math.round((beat + bopOffset) % bopRate) != 0) return;
 
 	if (cameraBopMultiplier == 1.0) bopBaseZoom = FlxG.camera.zoom;
@@ -357,4 +521,13 @@ function decayCameraBop(elapsed:Float)
 function onUpdate(elapsed:Float)
 {
 	decayCameraBop(elapsed);
+
+	if (!game.inCutscene && currentFlashIndex < gameplayFlashTimes.length)
+	{
+		if (Conductor.songPosition >= gameplayFlashTimes[currentFlashIndex])
+		{
+			triggerPinkFlash([game.camHUD]);
+			currentFlashIndex++;
+		}
+	}
 }

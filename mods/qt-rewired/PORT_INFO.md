@@ -134,6 +134,31 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   runtime con `addByFrameLabel` — mismo mecanismo que el prop `cars`. Se
   omiten los subtítulos (`showoff.srt`, Psych no tiene sistema nativo de
   subtítulos) y el prompt de "presiona para saltar" (ver limitación 8).
+- **Cutscene de INTRO de Blissful-erect (recién descubierta y portada)** —
+  `blissful-erect.hxc` también tiene su propio `onCountdownStart`, separado
+  de la de fin de canción, que se me había pasado por completo en una
+  revisión anterior. Portada en el mismo `qtStageCityErect.hx` vía
+  `onStartCountdown`/`Function_Stop` (guarda `hasPlayedIntroCutscene`): fade
+  desde negro, música `introSong-erect` a volumen 0.2, 8 pasos de cámara,
+  las voces `qt_erect_intro_1`/`qt_erect_intro_2` + `bf_erect_yeah`, las
+  poses `erectIntro1`/`erectIntro2` de dad (de nuevo vía intercambio a
+  `qt-erect`, **revertido a `qt` al terminar** para no romper el gameplay
+  real que sigue) y `superHey` de BF (todas etiquetas de frame,
+  `addByFrameLabel`). Además, mientras investigaba esto encontré y porté dos
+  detalles más del script que no tenían nada que ver con la cutscene en sí:
+  - **`pinkFlash`**: un overlay rosa de pantalla completa que se dispara una
+    vez en la cutscene de intro y 3 veces más durante el gameplay normal
+    (`gameplayFlashTimes`, comparado contra `Conductor.songPosition` en
+    `onUpdate`, igual que el original).
+  - **Atenuado del strumline del oponente** durante la ventana de
+    caramelldansen (beats 221→348 y 478→544, alpha 0.3↔1) — Psych representa
+    el strumline como un grupo de notas individuales (`opponentStrums`), no
+    un solo objeto como el original, así que se tweenea cada miembro.
+
+  No se portó `danceQT`/`QTErectDanceSprite` (un sprite overlay separado que
+  el original usa para el efecto visual de caramelldansen) porque este mod
+  ya resuelve esa sección con el intercambio de personaje a `qt-erect`, un
+  enfoque distinto pero funcional — ver "Note kind `caramella`" más abajo.
 - **Cutscene de intro de Blissful-pico**, portada desde `blissful-pico.hxc`'s
   `onCountdownStart()` — a diferencia de las otras dos (que interceptan el
   FIN de canción), esta corre ANTES del countdown real, interceptado vía
@@ -249,14 +274,20 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    Arreglarlo del todo requeriría separar un "zoom base" propio en las 6
    stages en vez de escribir `FlxG.camera.zoom` directamente desde
    `zoomCamera()`.
-8. **Cutscene final de Blissful-erect sin subtítulos ni skip.** Se portó toda
-   la coreografía de cámara/sonido/animación (ver "Estado actual"), pero se
-   omitió el archivo de subtítulos `subtitles/english/cutsceneErect/showoff.srt`
-   (Psych no tiene un sistema de subtítulos nativo) y el mecanismo de
-   "mantén presionado para saltar" (`skipCutscene()` del original) — la
-   cutscene siempre se reproduce completa, ~14s. Solo se copió el audio en
-   inglés (el original también trae una variante en español para
-   `qt_erect_ending`, no incluida).
+8. **Las dos cutscenes de Blissful-erect (intro y final) sin subtítulos ni
+   skip.** Se portó toda la coreografía de cámara/sonido/animación de ambas
+   (ver "Estado actual"), pero se omitieron los 3 archivos de subtítulos
+   (`alright-cutie.srt`/`well-see.srt` de la de intro, `showoff.srt` de la
+   final — Psych no tiene un sistema de subtítulos nativo) y el mecanismo de
+   "mantén presionado para saltar" (`skipCutscene()` del original) — ambas
+   cutscenes siempre se reproducen completas (~9.8s la de intro, ~14s la
+   final). Solo se copió el audio en inglés (el original también trae
+   variantes en español para varias de estas líneas, no incluidas). Además,
+   la pose `erectIntro1` de dad no se congela en el frame 0 como en el
+   original (que la pausa 0.9s antes de reproducirla completa) — acá
+   simplemente se reproduce dos veces seguidas, un detalle cosmético menor
+   (no se pudo verificar si pausar un `FlxAnimate` a mitad de reproducción es
+   seguro en esta API sin poder compilar/ejecutar el juego).
 9. **Blissful-2021 y Obliterated (base) no tienen ninguna cutscene** —
    confirmado en el script original (`hasPlayedOutro`/`onSongEnd`/
    `onCountdownStart` no aparecen en sus `.hx`/`.hxc`), no falta nada por
@@ -291,7 +322,7 @@ erect, Blissful pico) ya están portadas casi por completo. Lo que queda:
    compilar/ejecutar el juego en este entorno). KB y Pico no tienen arte de
    story menu en el paquete original, así que no hay nada que portar para
    ellos ahí.
-2. Subtítulos y mecanismo de skip para las 3 cutscenes (limitaciones 3/8) —
+2. Subtítulos y mecanismo de skip para las 4 cutscenes (limitaciones 3/8) —
    requeriría un sistema de subtítulos propio en HScript ya que Psych no
    trae uno nativo.
 3. Overlay de la pose `introbl` de Blissful-pico más preciso (limitación 10)
