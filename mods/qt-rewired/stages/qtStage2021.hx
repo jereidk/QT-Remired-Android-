@@ -1,5 +1,6 @@
 import states.PlayState;
 import backend.Song;
+import backend.Highscore;
 import states.LoadingState;
 
 var stageBack:FlxSprite;
@@ -242,6 +243,14 @@ function onEndSong():Dynamic
 
 function returnToQtRewiredMenu()
 {
+	// game.endSong() would normally save the highscore itself - since it's
+	// bypassed entirely (see qtStage.hx's returnToQtRewiredMenu comment),
+	// this replicates that one piece of it manually so scores/progressive
+	// unlock (see qtStageMenu.hx) still work.
+	var percent:Float = game.ratingPercent;
+	if (Math.isNaN(percent)) percent = 0;
+	Highscore.saveScore(PlayState.SONG.song, game.songScore, game.storyDifficulty, percent);
+
 	PlayState.SONG = Song.loadFromJson('qt-rewired', 'qt-rewired');
 	PlayState.isStoryMode = false;
 	FlxG.sound.music.volume = 0;

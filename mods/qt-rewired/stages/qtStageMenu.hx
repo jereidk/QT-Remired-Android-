@@ -5,6 +5,7 @@ import states.FreeplayState;
 import states.StoryMenuState;
 import states.LoadingState;
 import backend.Song;
+import backend.Highscore;
 import backend.Mods;
 import objects.HealthIcon;
 
@@ -28,14 +29,21 @@ import objects.HealthIcon;
 //
 // Song catalog for the custom Freeplay list - folder names match
 // data/<folder>/ exactly (see PORT_INFO.md's per-variant notes table).
+// requiresBeating: matches QTWeek.hxc's getSongDisplayNames() in the
+// original - Story Mode there only ever listed 2 songs, Blissful then
+// Obliterated once Blissful was beaten (every other variant was Freeplay-
+// only/alt-instrumental content in the original, never gated at all). Now
+// that this menu owns its own Freeplay-equivalent screen, that same gate is
+// finally portable (Highscore.getScore(), a real Psych save field) - see
+// PORT_INFO.md.
 var songEntries:Array<Dynamic> = [
-	{name: 'Blissful', folder: 'blissful', icon: 'qt'},
-	{name: 'Obliterated', folder: 'obliterated', icon: 'kb'},
-	{name: 'Blissful Erect', folder: 'blissful-erect', icon: 'qt'},
-	{name: 'Obliterated Erect', folder: 'obliterated-erect', icon: 'kb'},
-	{name: 'Obliterated Legacy', folder: 'obliterated-legacy', icon: 'kb'},
-	{name: 'Blissful Pico', folder: 'blissful-pico', icon: 'qt'},
-	{name: 'Blissful 2021', folder: 'blissful-2021', icon: 'qt-legacy'}
+	{name: 'Blissful', folder: 'blissful', icon: 'qt', requiresBeating: null},
+	{name: 'Obliterated', folder: 'obliterated', icon: 'kb', requiresBeating: 'blissful'},
+	{name: 'Blissful Erect', folder: 'blissful-erect', icon: 'qt', requiresBeating: null},
+	{name: 'Obliterated Erect', folder: 'obliterated-erect', icon: 'kb', requiresBeating: null},
+	{name: 'Obliterated Legacy', folder: 'obliterated-legacy', icon: 'kb', requiresBeating: null},
+	{name: 'Blissful Pico', folder: 'blissful-pico', icon: 'qt', requiresBeating: null},
+	{name: 'Blissful 2021', folder: 'blissful-2021', icon: 'qt-legacy', requiresBeating: null}
 ];
 
 var diffNames:Array<String> = ['EASY', 'NORMAL', 'HARD'];
@@ -229,6 +237,32 @@ function updateMainMenu()
 }
 
 // --- Freeplay (song select) ---
+// A song is locked if it names another song's folder in requiresBeating
+// and that other song has no saved score yet on any difficulty.
+function isSongUnlocked(entry:Dynamic):Bool
+{
+	if (entry.requiresBeating == null) return true;
+	return Highscore.getScore(entry.requiresBeating, 0) > 0
+		|| Highscore.getScore(entry.requiresBeating, 1) > 0
+		|| Highscore.getScore(entry.requiresBeating, 2) > 0;
+}
+
+function displayNameFor(entry:Dynamic):String
+{
+	if (isSongUnlocked(entry)) return entry.name;
+
+	var requiredName:String = entry.requiresBeating;
+	for (other in songEntries)
+	{
+		if (other.folder == entry.requiresBeating)
+		{
+			requiredName = other.name;
+			break;
+		}
+	}
+	return '??? (Beat ' + requiredName + ' first)';
+}
+
 function buildFreeplay()
 {
 	for (i in 0...songEntries.length)
@@ -242,10 +276,11 @@ function buildFreeplay()
 		icon.x = 140;
 		icon.y = rowY - 32;
 		icon.scrollFactor.set();
+		icon.color = isSongUnlocked(entry) ? 0xFFFFFFFF : 0xFF555555;
 		game.add(icon);
 		songIcons.push(icon);
 
-		var txt:FlxText = new FlxText(230, rowY - 20, FlxG.width - 260, entry.name, 34);
+		var txt:FlxText = new FlxText(230, rowY - 20, FlxG.width - 260, displayNameFor(entry), 34);
 		txt.setFormat(Paths.font('vcr.ttf'), 34, 0xFFFFFFFF, 'left', FlxTextBorderStyle.OUTLINE, 0xFF000000);
 		txt.scrollFactor.set();
 		game.add(txt);
@@ -282,7 +317,14 @@ function updateFreeplayHighlight()
 	diffText.text = '< ' + diffNames[diffIndex] + ' >';
 
 	for (i in 0...songTexts.length)
+	{
+		if (!isSongUnlocked(songEntries[i]))
+		{
+			songTexts[i].color = 0xFF555555;
+			continue;
+		}
 		songTexts[i].color = (i == songIndex) ? 0xFFFF69B4 : 0xFFFFFFFF;
+	}
 }
 
 function updateFreeplay()
@@ -318,6 +360,11 @@ function updateFreeplay()
 	}
 	else if (keyJustPressed('accept'))
 	{
+		if (!isSongUnlocked(songEntries[songIndex]))
+		{
+			FlxG.sound.play(Paths.sound('cancelMenu'));
+			return;
+		}
 		launchSong(songEntries[songIndex].folder, diffIndex);
 	}
 }

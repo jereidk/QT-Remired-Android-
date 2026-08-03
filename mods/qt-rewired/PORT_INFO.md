@@ -426,6 +426,29 @@ y decidió proceder de todas formas.
     `qtStageObliteratedErect.hx`, `qtStagePico.hx`, `qtStage2021.hx`
     (ninguna tenía cutscene de final): se agregó un `onEndSong()` nuevo que
     llama `returnToQtRewiredMenu()` directo y devuelve `Function_Stop`.
+  - **Corrección de una revisión posterior**: al reemplazar `game.endSong()`
+    por completo, se perdió el guardado de highscore que ese método hacía
+    internamente (`Highscore.saveScore(...)`) — un bug real, silencioso, que
+    hacía que NINGUNA canción guardara puntaje nunca más. Se corrigió
+    agregando esa misma llamada (`Highscore.saveScore(PlayState.SONG.song,
+    game.songScore, game.storyDifficulty, percent)`) al inicio de
+    `returnToQtRewiredMenu()` en las 6 canciones, antes de cambiar de
+    estado — mismos valores que el original leía (`game.ratingPercent`,
+    `NaN`→`0` igual que `PlayState.hx`).
+- **Desbloqueo progresivo de canciones, ahora SÍ portado** — corrección de
+  una entrada anterior de la limitación 15 que decía que esto no era
+  alcanzable en absoluto. Es cierto que la lista de Story Mode/Freeplay
+  REAL de Psych no soporta esto (ver el punto de abajo), pero una vez que
+  este menú custom pasó a controlar su propia pantalla de selección de
+  canción, sí se pudo replicar el gate exacto del original
+  (`QTWeek.hxc.getSongDisplayNames()`: solo Blissful visible hasta ganarla,
+  recién ahí aparece Obliterated — las demás variantes nunca estuvieron
+  gateadas ni en el original). Implementado en `qtStageMenu.hx` vía
+  `Highscore.getScore('blissful', 0/1/2) > 0` (un campo de guardado real de
+  Psych, ya funcionando gracias a la corrección de arriba) — la entrada
+  bloqueada se muestra atenuada con el texto "??? (Beat Blissful first)" en
+  vez del nombre real, y ACCEPT sobre ella solo reproduce el sonido de
+  cancelar en vez de lanzar la canción.
 - **La única costura que NO se pudo cerrar**: morir en una canción real y
   presionar BACK en la pantalla de Game Over. `GameOverSubstate.update()`
   maneja BACK de forma nativa (`MusicBeatState.switchState(new
@@ -436,9 +459,11 @@ y decidió proceder de todas formas.
   como `weeks/QT.json` ahora solo tiene la entrada "QT-Rewired", ese
   Freeplay real ya no muestra las 7 canciones sueltas, solo la puerta de
   entrada al menú custom — un paso extra, no un callejón sin salida.
-- **Por qué NO se pudo hacer lo mismo con la cápsula animada de Story Menu,
-  el desbloqueo progresivo, ni los iconos/álbum de Freeplay** (limitación
-  15): se confirmó con grep directo que `StoryMenuState.hx`,
+- **Por qué NO se pudo hacer lo mismo con la cápsula animada de Story Menu
+  real, ni los iconos/álbum del Freeplay real** (limitación 15 — el
+  desbloqueo progresivo SÍ se resolvió, ver arriba, precisamente porque
+  dejó de depender de esas pantallas reales): se confirmó con grep directo
+  que `StoryMenuState.hx`,
   `FreeplayState.hx`, `MainMenuState.hx`, y hasta `MusicBeatState.hx` (la
   clase base de TODOS los estados) no tienen NINGUNA referencia a
   `callOnScripts`/`hscriptArray`/`initHScript` — cero resultados. Un
@@ -798,18 +823,18 @@ y decidió proceder de todas formas.
         original, construido solo con técnicas ya probadas en este mod
         (`FlxG.camera.shake`, un `FlxSprite` con blend `MULTIPLY` agregado a
         `GameOverSubstate.instance`), sin inventar contenido nuevo.
-    - **Desbloqueo progresivo de canciones dentro de Story Mode**
-      (`scripts/weeks/QTWeek.hxc`'s `getSongDisplayNames()`: solo muestra
-      "Blissful" hasta que se completa, recién ahí aparece "Obliterated" —
-      el original en Story Mode solo tenía esas 2 canciones base, todas las
-      demás variantes eran Freeplay-only). El `WeekData` de Psych no tiene
-      ningún campo para ocultar canciones individuales de un mismo `weeks/
-      *.json` según el progreso guardado, ni para que Story Mode y Freeplay
-      muestren listas de canciones distintas dentro de la misma semana (el
-      campo `hideFreeplay`/`hideStoryMode` es por SEMANA entera, no por
-      canción) — implementarlo bien requeriría tocar `StoryMenuState.hx`.
-      Este mod expone las 7 variantes por igual en Story Mode y Freeplay
-      desde el principio, sin ese desbloqueo progresivo.
+    - **Desbloqueo progresivo de canciones — YA PORTADO, ver "Estado
+      actual" y el sistema de menú custom "QT-Rewired".** (`scripts/weeks/
+      QTWeek.hxc`'s `getSongDisplayNames()`: solo muestra "Blissful" hasta
+      que se completa, recién ahí aparece "Obliterated"). Se dejaba esto
+      documentado como imposible porque el `WeekData`/`StoryMenuState.hx`
+      REAL de Psych efectivamente no tiene ningún campo para ocultar
+      canciones individuales de una semana según progreso guardado — eso
+      sigue siendo cierto para esas pantallas reales. Pero una vez que las
+      7 canciones dejaron de listarse ahí y pasaron a seleccionarse desde
+      la propia pantalla de Freeplay de `qtStageMenu.hx` (que sí corre
+      HScript), el mismo gate del original se pudo replicar ahí
+      directamente con `Highscore.getScore()`.
     - **Cápsula animada de Story Menu** (`data/levels/QTWeek.json`'s
       `props` — QT/BF/GF con animaciones idle/confirm en la lista de
       semanas) — distinta del `MenuCharacter` que ya se portó (limitación 6,
