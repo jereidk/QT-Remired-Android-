@@ -27,6 +27,10 @@ var currentFlashIndex:Int = 0;
 
 function onCreate()
 {
+	// Must run before the first onUpdate/applyCameraZoom() call - see the
+	// "SetCameraBop" block below for why this can't just default to 1.0.
+	camZoomState.zoom = game.defaultCamZoom;
+
 	// Furthest back to closest, all behind the characters (zIndex < 100 in
 	// the original stage data).
 	sky = new FlxSprite(-973, -1076);
@@ -257,7 +261,7 @@ function tweenCamPos(x:Float, y:Float, duration:Float, ease:Float->Float)
 function tweenCamZoomAbs(mult:Float, duration:Float, ease:Float->Float)
 {
 	if (cameraZoomTween != null) cameraZoomTween.cancel();
-	cameraZoomTween = FlxTween.tween(FlxG.camera, {zoom: game.defaultCamZoom * mult}, duration, {ease: ease});
+	cameraZoomTween = FlxTween.tween(camZoomState, {zoom: game.defaultCamZoom * mult}, duration, {ease: ease});
 }
 
 function dadFocusX():Float return game.dad.getMidpoint().x + 150 + game.dad.cameraPosition[0] + game.opponentCameraOffset[0];
@@ -429,7 +433,8 @@ function playIntroCutscene()
 	introMusic = FlxG.sound.play(Paths.music('gameplay/introSong/introSong-erect'), 0.2);
 
 	game.camFollow.setPosition(538, 500);
-	FlxG.camera.zoom = game.defaultCamZoom * 1.08;
+	if (cameraZoomTween != null) cameraZoomTween.cancel();
+	camZoomState.zoom = game.defaultCamZoom * 1.08;
 	FlxG.camera.fade(0xFF000000, 2.75, true, null, true);
 
 	var dad = game.dad;
@@ -510,7 +515,7 @@ function finishIntroCutscene()
 	game.triggerEvent('Change Character', 'dad', 'qt', 0);
 
 	if (cameraZoomTween != null) cameraZoomTween.cancel();
-	FlxG.camera.zoom = game.defaultCamZoom;
+	camZoomState.zoom = game.defaultCamZoom;
 
 	game.inCutscene = false;
 	game.camHUD.visible = true;
@@ -594,12 +599,12 @@ function zoomCamera(value1:String, value2:String)
 
 	if (ease == 'INSTANT')
 	{
-		FlxG.camera.zoom = target;
+		camZoomState.zoom = target;
 		return;
 	}
 
 	var durSeconds:Float = Conductor.stepCrochet * duration / 1000;
-	cameraZoomTween = FlxTween.tween(FlxG.camera, {zoom: target}, durSeconds, {ease: resolveEase(ease)});
+	cameraZoomTween = FlxTween.tween(camZoomState, {zoom: target}, durSeconds, {ease: resolveEase(ease)});
 }
 
 // --- SetCameraBop: periodic camera zoom pulse (see PORT_INFO.md) ---
@@ -618,11 +623,15 @@ function setCameraBop(value1:String, value2:String)
 // SetCameraBop uses FunkinCrew's real per-frame exponential decay
 // (SetCameraBopSongEvent.hx / PlayState.hx:
 // cameraBopMultiplier = lerp(1, cameraBopMultiplier, 0.95^(elapsed*60)))
-// instead of a fixed-duration up/down tween. Paused while an explicit
-// ZoomCamera tween is active so the two don't fight over FlxG.camera.zoom -
-// see PORT_INFO.md.
+// instead of a fixed-duration up/down tween. The camera's "intended" zoom
+// (whatever ZoomCamera events/cutscenes want) is tracked separately in
+// camZoomState.zoom instead of writing FlxG.camera.zoom directly, so it
+// composes cleanly with the bop multiplier every frame (applyCameraZoom())
+// instead of the two systems fighting over the same field - see
+// PORT_INFO.md. camZoomState.zoom MUST be initialized to game.defaultCamZoom
+// in onCreate (see above) before the first applyCameraZoom() call.
+var camZoomState = {zoom: 1.0};
 var cameraBopMultiplier:Float = 1.0;
-var bopBaseZoom:Float = 1.0;
 
 // Opponent-strumline dimming during the caramelldansen window, ported
 // straight from blissful-erect.hxc's onBeatHit. Psych represents the
@@ -646,26 +655,29 @@ function onBeatHit()
 	if (bopRate <= 0 || bopIntensity == 1.0) return;
 	if (Math.round((beat + bopOffset) % bopRate) != 0) return;
 
-	if (cameraBopMultiplier == 1.0) bopBaseZoom = FlxG.camera.zoom;
 	cameraBopMultiplier = bopIntensity;
 }
 
 function decayCameraBop(elapsed:Float)
 {
 	if (cameraBopMultiplier == 1.0) return;
-	if (cameraZoomTween != null && cameraZoomTween.active) return;
 
 	var decayRate:Float = 0.95;
 	var dt:Float = elapsed * 60;
 	cameraBopMultiplier = 1.0 + (cameraBopMultiplier - 1.0) * Math.pow(decayRate, dt);
-	FlxG.camera.zoom = bopBaseZoom * cameraBopMultiplier;
 
 	if (Math.abs(cameraBopMultiplier - 1.0) < 0.0005) cameraBopMultiplier = 1.0;
+}
+
+function applyCameraZoom()
+{
+	FlxG.camera.zoom = camZoomState.zoom * cameraBopMultiplier;
 }
 
 function onUpdate(elapsed:Float)
 {
 	decayCameraBop(elapsed);
+	applyCameraZoom();
 	updateSkipPrompt();
 
 	if (!game.inCutscene && currentFlashIndex < gameplayFlashTimes.length)

@@ -74,11 +74,9 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
 - **`SetCameraBop`** (oscilación de zoom por beat) en los 6 stages, con la
   curva de decaimiento exponencial real de FunkinCrew
   (`cameraBopMultiplier = lerp(1, cameraBopMultiplier, 0.95^(elapsed*60))`
-  cada frame, leída directo de `PlayState.hx`/`SetCameraBopSongEvent.hx`),
-  en vez del tween de ida y vuelta de duración fija que había antes. Se
-  pausa mientras un evento `ZoomCamera` tiene un tween activo (para no pelear
-  por `FlxG.camera.zoom`) — ver limitación 7 sobre esta única diferencia
-  restante con el original.
+  cada frame, leída directo de `PlayState.hx`/`SetCameraBopSongEvent.hx`) Y
+  un "zoom base" (`camZoomState.zoom`) separado del multiplicador de bop,
+  igual que el original — ver limitación 7 para el detalle del refactor.
 - **`changeStage`** (Obliterated/Obliterated-legacy): recolorea `tvLights`/
   `lightOverlay` entre Normal/Killer/Blue/Red — confirmado que eso es
   literalmente todo lo que hace el evento original (no cambia de escenario).
@@ -310,23 +308,23 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    `images/storymenu/titles/weekqt.png` en el paquete original, pero Psych
    no tiene un slot de imagen para el título de semana en el story menu (es
    texto plano, `txtWeekTitle`), así que no tiene a dónde ir.
-7. **`SetCameraBop` ya usa la curva de decaimiento real** (ver "Estado
-   actual"), con una única diferencia deliberada: el original mantiene el
-   zoom "base" (el que fijan los tweens de `ZoomCamera`) completamente
-   separado del multiplicador de bop, combinándolos recién cada frame
-   (`zoomPlusBop = currentCameraZoom * cameraBopMultiplier`). La versión
-   portada no tiene ese "zoom base" como variable independiente — ambos
-   sistemas escriben directo a `FlxG.camera.zoom` — así que, para no pelear
-   por ese valor, el decaimiento del bop se pausa mientras un `ZoomCamera`
-   tiene un tween activo y retoma cuando termina. Esto SÍ pasa seguido (los
-   charts casi siempre emiten `SetCameraBop` cerca de un `ZoomCamera`, así
-   que hay secciones enteras donde ambos están activos a la vez): en esas
-   ventanas el bop queda congelado en vez de seguir decayendo en paralelo
-   como en el original — visualmente similar (el zoom igual se mueve, solo
-   que sin el pulso superpuesto durante esos tramos) pero no idéntico.
-   Arreglarlo del todo requeriría separar un "zoom base" propio en las 6
-   stages en vez de escribir `FlxG.camera.zoom` directamente desde
-   `zoomCamera()`.
+7. **`SetCameraBop` ya replica el modelo del original al completo** (zoom
+   "base" separado del multiplicador de bop, igual que
+   `zoomPlusBop = currentCameraZoom * cameraBopMultiplier` en
+   `PlayState.hx`). Se separó `camZoomState.zoom` (lo que fijan
+   `zoomCamera()`/`tweenCamZoomAbs()`/cada cutscene) de
+   `cameraBopMultiplier`, combinándolos recién cada frame en
+   `applyCameraZoom()` — ya no hace falta pausar el bop mientras un
+   `ZoomCamera` tiene un tween activo, ambos sistemas conviven sin pelear
+   por `FlxG.camera.zoom`. Este cambio tocó los ~18 lugares que escribían
+   `FlxG.camera.zoom` directamente en las 6 stages (a diferencia de casi
+   todo el resto del port, que fue código nuevo aditivo) — el riesgo real
+   era la inicialización de `camZoomState.zoom` en `onCreate()` de cada
+   stage (copiando `game.defaultCamZoom` antes del primer frame): si eso
+   falla, el zoom de cámara se rompe en el gameplay normal de las 7
+   canciones, no solo en una cutscene puntual. Se verificó con cuidado que
+   las 6 stages lo inicializan correctamente y que no queda ningún escrito
+   directo a `FlxG.camera.zoom` fuera de `applyCameraZoom()`.
 8. **Las dos cutscenes de Blissful-erect (intro y final), ahora con
    skip.** Se portó toda la coreografía de cámara/sonido/animación/
    subtítulos de ambas, más el prompt "Hold [ACCEPT] to skip" (ver "Estado
@@ -440,28 +438,25 @@ base/legacy) ya están portadas. Lo que queda:
    — el bop de GF ya está portado. Sin verificación visual posible en este
    entorno, no queda mucho margen concreto de mejora más allá de lo ya
    hecho.
-4. Separar un "zoom base" propio del bop en las 6 stages para que
-   `SetCameraBop` no tenga que pausarse mientras un `ZoomCamera` está activo
-   (limitación 7 — hoy ambos escriben directo a `FlxG.camera.zoom`).
-5. `cutsceneVideo`/`cutsceneVideoOut`/`fadeStart` de Obliterated (video
+4. `cutsceneVideo`/`cutsceneVideoOut`/`fadeStart` de Obliterated (video
    superpuesto en gameplay en vivo) — ver limitación 4 sobre por qué esto es
    una limitación arquitectónica de Psych, no un simple pendiente; requeriría
    experimentar con las clases de `hxCodec` directamente desde HScript (sin
    poder compilar/probar en este entorno) y probablemente solo seria seguro
    de intentar con acceso a un build real del juego para verificar.
-6. La apertura/cinemática de mitad de canción de Obliterated-erect (dos
+5. La apertura/cinemática de mitad de canción de Obliterated-erect (dos
    videos incrustados + shaders de color + 4 fundidos de cámara con cambio
    de layout — ver limitación 12), misma limitación arquitectónica que el
-   punto 5. Antes de intentar cualquiera de los dos puntos de video, valdría
+   punto 4. Antes de intentar cualquiera de los dos puntos de video, valdría
    la pena confirmar si las clases de `hxCodec` son siquiera alcanzables
    desde HScript en esta versión de Psych — eso determina si esto es viable
    algún día o es un límite duro del engine.
-7. La pose congelada `intro` de BF en la apertura de Obliterated base/legacy
+6. La pose congelada `intro` de BF en la apertura de Obliterated base/legacy
    (limitación 11) y la pose `intro-erect` de KB en Obliterated-erect (atlas
    separado `kb_export/kb_erect_intro`, `animType: "symbol"`) — ambas
    omitidas por bajo beneficio visual frente al riesgo de otro overlay
    standalone sin verificación visual posible.
-8. Toggles avanzados del HUD 2021 (`baseGameRank`/`baseGameAccuracy`/
+7. Toggles avanzados del HUD 2021 (`baseGameRank`/`baseGameAccuracy`/
    `lerpEverything`/`judgementCounter`/`holdSplashes`/`noteSplashes`/
    `disableKeWatermark`) y el ranking con colores vía `applyMarkup` —
    omitidos porque todos estaban apagados por defecto en el original (ver
