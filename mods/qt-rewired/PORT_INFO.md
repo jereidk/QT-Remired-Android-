@@ -22,9 +22,11 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
 - `stages/{qtStage,qtStageKiller,qtStageCityErect,qtStageObliteratedErect,
   qtStagePico,qtStage2021}.json`+`.hx` (HScript) — anchors de personajes,
   zoom y fondos de cada stage. `qtStage` y `qtStageCityErect` tienen cutscene
-  de FIN de canción; `qtStagePico` tiene cutscene de INICIO (antes del
-  countdown); `qtStageKiller`/`qtStageObliteratedErect`/`qtStage2021` no
-  tienen ninguna (ver más abajo y limitación 9).
+  de INICIO **y** de FIN de canción; `qtStagePico` solo tiene la de INICIO
+  (antes del countdown); `qtStageKiller` tiene una apertura simple (fundido
+  desde negro, sin coreografía); `qtStageObliteratedErect` tiene una apertura
+  bastante más grande sin portar (ver limitación 12); `qtStage2021` no tiene
+  ninguna (confirmado, ver limitación 9).
 - `data/{blissful,obliterated,blissful-erect,obliterated-erect,
   obliterated-legacy,blissful-pico,blissful-2021}/*.json` — charts convertidos
   del formato plano `{t,d,l,p,k}` del mod original al formato de secciones de
@@ -176,6 +178,19 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   offset original — ver limitación 10 sobre la precisión de este overlay. Al
   terminar, llama de nuevo a `game.startCountdown()` (guard
   `hasPlayedIntroCutscene`, mismo patrón que `hasPlayedOutro`).
+- **Cutscene de intro de Blissful (base), recién descubierta y portada** —
+  `blissful.hxc` TAMBIÉN tiene su propio `onCountdownStart` (además del
+  `onSongEnd` ya portado), básicamente la misma plantilla que la de
+  Blissful-pico (mismo patrón `still`→`intro` de dad, mismo `hi_cutie`) pero
+  sin la pose de BF. Portada en `qtStage.hx` vía `onStartCountdown`: fade
+  desde negro, música `introSong-default`, coreografía de cámara, pose de
+  dad, sonido `hi_cutie`.
+- **Apertura de Obliterated (base/legacy) con fundido desde negro** —
+  `obliterated.hxc`'s `onCountdownStart`/`onSongStart`/`onSongRetry`.
+  Portada en `qtStageKiller.hx`: pantalla negra al empezar, snap de cámara,
+  fundido a 0 en 5s cuando arranca el audio real, `game.skipCountdown` para
+  saltar directo a la canción (ver limitación 11 sobre la pose de BF
+  omitida).
 - **Portrait de QT en el Story Menu** (`images/menucharacters/qt.json`,
   atlas Sparrow real del mod `images/storymenu/props/QT.xml`+`.png`, con
   animaciones `qt_idle`/`qt_hey` — ver limitación 6 sobre el `scale`
@@ -288,10 +303,10 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    simplemente se reproduce dos veces seguidas, un detalle cosmético menor
    (no se pudo verificar si pausar un `FlxAnimate` a mitad de reproducción es
    seguro en esta API sin poder compilar/ejecutar el juego).
-9. **Blissful-2021 y Obliterated (base) no tienen ninguna cutscene** —
-   confirmado en el script original (`hasPlayedOutro`/`onSongEnd`/
-   `onCountdownStart` no aparecen en sus `.hx`/`.hxc`), no falta nada por
-   portar ahí.
+9. **Blissful-2021 confirmado sin ninguna cutscene** — no aparecen
+   `hasPlayedOutro`/`onSongEnd`/`onCountdownStart` en su `.hx`, no falta nada
+   por portar ahí. Obliterated (base) sí tenía algo (ver "Estado actual" y
+   limitación 11) y Obliterated-erect tiene bastante más (ver limitación 12).
 10. **Overlay de la pose `introbl` de BF en la cutscene de Blissful-pico no
     es pixel-perfect.** `pico-qt` usa el sprite vanilla de Pico para el
     gameplay normal (limitación 1), así que esta pose (que sí viene en el
@@ -303,6 +318,29 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
     sincronizado a los beats del `introSong-pico` (103 BPM) que tiene el
     original vía un `Conductor` secundario — GF se queda en su pose idle
     normal durante estos ~11s.
+11. **Apertura de Obliterated (base/legacy) sin la pose de BF congelada.**
+    Se portó el fundido desde negro (~5s), el snap de cámara (zoom 1.2,
+    posición 1100,655) y saltar directo a la canción (`game.skipCountdown`,
+    en vez del `startSong()` privado del original al que HScript no puede
+    llegar) — ver "Estado actual". Se omitió la pose `intro` congelada de BF
+    (etiqueta de frame en el atlas propio `characters/BF/bf-qt`, que no se
+    usa para el gameplay normal de esta variante — limitación 1) porque
+    queda mayormente tapada por la pantalla negra durante los pocos segundos
+    que dura, y motivaba otro overlay standalone (como el de la limitación
+    10) para un beneficio visual marginal.
+12. **Obliterated-erect NO tiene su apertura/cinemática de mitad de canción
+    portada — es una limitación arquitectónica, no un pendiente simple.** Al
+    investigar la apertura encontré que está enredada con un sistema mucho
+    más grande: DOS videos incrustados (`obliteratedErectMid.mp4`,
+    `obliteratedErectEdit.mp4`, vía `FunkinVideoSprite`, igual que el
+    `cutsceneVideo` de Obliterated base — ver limitación 4), shaders de
+    color (`AdjustColorShader`/`DropShadowShader` sobre dad), y 4 fundidos
+    de cámara con cambio de layout en momentos específicos
+    (`camFade2/3/4Triggered`, `fadeOut1/2Triggered`, `layoutTriggered`, en
+    t≈147.9s/148.3s/152.2s/152.3s/178.5s/179.2s/189.6s) que llevan al
+    personaje a un estado "tsundere" después. Portar solo el fundido a negro
+    inicial sin el resto dejaría una apertura sin ningún pago visual —
+    mismo criterio que ya se aplicó a `cutsceneVideo`/`fadeStart`.
 
 ## Assets de origen
 
@@ -314,8 +352,9 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
 
 ## Próximos pasos sugeridos (en orden)
 
-Las 3 canciones que tienen cutscene en el original (Blissful base, Blissful
-erect, Blissful pico) ya están portadas casi por completo. Lo que queda:
+Todas las cutscenes/aperturas que tienen contenido real en el original
+(Blissful base ×2, Blissful erect ×2, Blissful pico, Obliterated
+base/legacy) ya están portadas. Lo que queda:
 
 1. Verificar/ajustar visualmente el `scale`/`position` del portrait de QT en
    el Story Menu (limitación 6 — estimado por proporción, sin poder
@@ -336,6 +375,18 @@ erect, Blissful pico) ya están portadas casi por completo. Lo que queda:
    experimentar con las clases de `hxCodec` directamente desde HScript (sin
    poder compilar/probar en este entorno) y probablemente solo seria seguro
    de intentar con acceso a un build real del juego para verificar.
+6. La apertura/cinemática de mitad de canción de Obliterated-erect (dos
+   videos incrustados + shaders de color + 4 fundidos de cámara con cambio
+   de layout — ver limitación 12), misma limitación arquitectónica que el
+   punto 5. Antes de intentar cualquiera de los dos puntos de video, valdría
+   la pena confirmar si las clases de `hxCodec` son siquiera alcanzables
+   desde HScript en esta versión de Psych — eso determina si esto es viable
+   algún día o es un límite duro del engine.
+7. La pose congelada `intro` de BF en la apertura de Obliterated base/legacy
+   (limitación 11) y la pose `intro-erect` de KB en Obliterated-erect (atlas
+   separado `kb_export/kb_erect_intro`, `animType: "symbol"`) — ambas
+   omitidas por bajo beneficio visual frente al riesgo de otro overlay
+   standalone sin verificación visual posible.
 
 ## Notas de implementación por variante
 

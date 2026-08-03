@@ -185,6 +185,37 @@ function changeStageColor(mode:String)
 	if (lightOverlay != null) lightOverlay.animation.play(mode == 'Normal' ? 'Normal' : 'Killer');
 }
 
+// Obliterated/Obliterated-legacy open on a black screen that fades in over
+// the first 5s of the song, ported from obliterated.hxc's onCountdownStart/
+// onSongStart/onSongRetry. The original also skips the visual countdown
+// entirely (in story mode) via a private startSong() call we can't reach
+// from HScript, and freezes boyfriend's "obliterated intro" pose (a
+// frame-label anim on the mod's own bf-qt atlas, which isn't used for
+// normal gameplay here - see limitation 1) - both dropped as low-value,
+// higher-risk detail for a few seconds that's mostly hidden by the black
+// screen anyway. game.skipCountdown gets the same "jump straight to the
+// song" effect through public API instead of a private method call.
+function onStartCountdown():Dynamic
+{
+	blackScreen.alpha = 1;
+	game.camFollow.setPosition(1100, 655);
+	FlxG.camera.zoom = 1.2;
+	game.isCameraOnForcedPos = true;
+	game.skipCountdown = true;
+	return null;
+}
+
+function onSongStart()
+{
+	FlxTween.tween(blackScreen, {alpha: 0}, 5, {ease: FlxEase.quadInOut});
+}
+
+function onSongRetry()
+{
+	FlxTween.cancelTweensOf(blackScreen);
+	blackScreen.alpha = 1;
+}
+
 // Sequence timeline (beats, relative to the event's strumTime):
 //   beat 0: first alert
 //   beat 1: second alert + saw appears, spinning

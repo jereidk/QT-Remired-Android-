@@ -164,6 +164,73 @@ function tweenCamPos(x:Float, y:Float, duration:Float, ease:Float->Float)
 	cameraFollowTween = FlxTween.tween(game.camFollow, {x: x, y: y}, duration, {ease: ease});
 }
 
+function tweenCamZoomAbs(mult:Float, duration:Float, ease:Float->Float)
+{
+	if (cameraZoomTween != null) cameraZoomTween.cancel();
+	cameraZoomTween = FlxTween.tween(FlxG.camera, {zoom: game.defaultCamZoom * mult}, duration, {ease: ease});
+}
+
+// --- Blissful (base) intro cutscene, ported from blissful.hxc's
+// onCountdownStart() - a separate feature from the QT-transform outro above
+// that had been missed entirely in an earlier pass (see PORT_INFO.md). Same
+// "still"-then-"intro" frame-label pose on the plain "qt" atlas (no swap
+// needed - unlike Blissful-erect, base Blissful's dad never leaves "qt"),
+// same onStartCountdown/Function_Stop interception as the other intro
+// cutscenes. Subtitles/skip-key dropped, same as the rest.
+var hasPlayedIntroCutscene:Bool = false;
+var introMusic:Dynamic;
+
+function onStartCountdown():Dynamic
+{
+	if (hasPlayedIntroCutscene) return null;
+	hasPlayedIntroCutscene = true;
+	playIntroCutsceneCountdown();
+	return Function_Stop;
+}
+
+function playIntroCutsceneCountdown()
+{
+	game.inCutscene = true;
+	game.isCameraOnForcedPos = true;
+	if (cameraFollowTween != null) cameraFollowTween.cancel();
+	if (cameraZoomTween != null) cameraZoomTween.cancel();
+
+	game.camHUD.visible = false;
+	game.camHUD.alpha = 0;
+
+	if (game.dad.atlas != null)
+	{
+		game.dad.atlas.anim.addByFrameLabel('still', 'hi cutie', 24, false);
+		game.dad.atlas.anim.addByFrameLabel('intro', 'hi cutie', 24, false);
+	}
+
+	introMusic = FlxG.sound.play(Paths.music('gameplay/introSong/introSong-default'), 0.1);
+
+	game.camFollow.setPosition(dadFocusX(), dadFocusY() - 235);
+	FlxG.camera.fade(0xFF000000, 2.75, true, null, true);
+
+	game.dad.playAnim('still', true, true);
+	tweenCamPos(dadFocusX(), dadFocusY(), 2.75, FlxEase.expoOut);
+	tweenCamZoomAbs(1.1875, 2.75, FlxEase.expoOut);
+
+	new FlxTimer().start(0.5, function(_) game.dad.playAnim('intro', true, false));
+
+	new FlxTimer().start(1.09, function(_) FlxG.sound.play(Paths.sound('gameplay/countdown/hi_cutie'), 1));
+
+	new FlxTimer().start(4, function(_)
+	{
+		tweenCamZoomAbs(1.0, 4, FlxEase.smoothStepInOut);
+
+		game.inCutscene = false;
+		game.camHUD.visible = true;
+		game.camHUD.alpha = 0;
+		FlxTween.tween(game.camHUD, {alpha: 1}, 1, {ease: FlxEase.smoothStepInOut});
+
+		if (introMusic != null) introMusic.stop();
+		game.startCountdown();
+	});
+}
+
 function onEvent(eventName:String, value1:String, value2:String, strumTime:Float)
 {
 	if (eventName == 'FocusCamera') focusCamera(value1, value2);
