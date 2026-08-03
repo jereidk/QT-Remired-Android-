@@ -76,8 +76,9 @@ function onGameOver()
 // used elsewhere - addBySymbol works directly), inserted into the display
 // list right below the fade overlays so it renders where dad used to be.
 // Same onEndSong/Function_Stop interception pattern as the other cutscenes.
-// Subtitles/skip-key are dropped (Psych has no subtitle system) - see
-// PORT_INFO.md.
+// Subtitles are dropped for this one (the original's QtTransformSongOutro
+// never had any); the skip-key prompt IS ported (see "Cutscene skip prompt"
+// below) - see PORT_INFO.md for the caveat on skipping mid-fade.
 var hasPlayedOutro:Bool = false;
 var qtCutscene:FlxAnimate;
 
@@ -99,6 +100,9 @@ function playIntroCutscene()
 	if (cameraFollowTween != null) cameraFollowTween.cancel();
 	if (cameraZoomTween != null) cameraZoomTween.cancel();
 
+	setupSkipPrompt();
+	activeCutsceneFinish = finishOutroCutscene;
+
 	FlxTween.tween(game.camHUD, {alpha: 0}, 1);
 
 	qtCutscene = new FlxAnimate(game.dad.x - 45, game.dad.y - 269);
@@ -119,25 +123,25 @@ function playIntroCutscene()
 	var opponentTargetX:Float = dadFocusX();
 	var opponentTargetY:Float = game.camFollow.y;
 
-	new FlxTimer().start(1, function(_) FlxG.sound.play(Paths.sound('qtsfx')));
+	scheduleCutsceneTimer(1, function(_) FlxG.sound.play(Paths.sound('qtsfx')));
 
-	new FlxTimer().start(1, function(_) tweenCamPos(opponentTargetX, opponentTargetY, 2.55, FlxEase.quadInOut));
+	scheduleCutsceneTimer(1, function(_) tweenCamPos(opponentTargetX, opponentTargetY, 2.55, FlxEase.quadInOut));
 
-	new FlxTimer().start(2.26, function(_)
+	scheduleCutsceneTimer(2.26, function(_)
 	{
 		FlxTween.tween(lightOverlay, {alpha: 0}, 1.10, {ease: FlxEase.linear});
 		FlxTween.tween(blackScreen, {alpha: 1}, 1.10, {ease: FlxEase.linear});
 		FlxTween.tween(spotLight, {alpha: 1}, 1.10, {ease: FlxEase.linear});
 	});
 
-	new FlxTimer().start(12, function(_)
+	scheduleCutsceneTimer(12, function(_)
 	{
 		FlxG.camera.shake(0.002, 8);
 		FlxTween.tween(redScreen, {alpha: 1}, 0.7, {ease: FlxEase.linear});
 		FlxTween.tween(spotLight, {alpha: 0}, 0.7, {ease: FlxEase.linear});
 	});
 
-	new FlxTimer().start(13, function(_)
+	scheduleCutsceneTimer(13, function(_)
 	{
 		FlxG.camera.fade(0xFFFFFFFF, 2, false, function()
 		{
@@ -149,13 +153,29 @@ function playIntroCutscene()
 		});
 	});
 
-	new FlxTimer().start(15.7, function(_) FlxG.camera.fade(0xFF000000, 0.0001, false));
+	scheduleCutsceneTimer(15.7, function(_) FlxG.camera.fade(0xFF000000, 0.0001, false));
 
-	new FlxTimer().start(17.5, function(_)
+	scheduleCutsceneTimer(17.5, function(_) finishOutroCutscene());
+}
+
+function finishOutroCutscene()
+{
+	activeCutsceneFinish = null;
+	if (qtCutscene != null)
 	{
-		game.inCutscene = false;
-		game.endSong();
-	});
+		qtCutscene.destroy();
+		qtCutscene = null;
+	}
+	game.dad.visible = true;
+	blackScreen.alpha = 0;
+	spotLight.alpha = 0;
+	redScreen.alpha = 0;
+	lightOverlay.alpha = 1;
+	FlxG.camera.zoom = game.defaultCamZoom;
+	game.camHUD.alpha = 1;
+	game.camHUD.visible = true;
+	game.inCutscene = false;
+	game.endSong();
 }
 
 function tweenCamPos(x:Float, y:Float, duration:Float, ease:Float->Float)
@@ -176,8 +196,8 @@ function tweenCamZoomAbs(mult:Float, duration:Float, ease:Float->Float)
 // "still"-then-"intro" frame-label pose on the plain "qt" atlas (no swap
 // needed - unlike Blissful-erect, base Blissful's dad never leaves "qt"),
 // same onStartCountdown/Function_Stop interception as the other intro
-// cutscenes. Skip-key still dropped (see PORT_INFO.md); the subtitle line
-// itself is ported (see showSubtitle() below).
+// cutscenes. Both the subtitle line (showSubtitle() below) and the skip-key
+// prompt ("Cutscene skip prompt" below) are ported.
 var hasPlayedIntroCutscene:Bool = false;
 var introMusic:Dynamic;
 var subtitleText:FlxText;
@@ -197,6 +217,9 @@ function playIntroCutsceneCountdown()
 	if (cameraFollowTween != null) cameraFollowTween.cancel();
 	if (cameraZoomTween != null) cameraZoomTween.cancel();
 
+	setupSkipPrompt();
+	activeCutsceneFinish = finishIntroCutsceneCountdown;
+
 	game.camHUD.visible = false;
 	game.camHUD.alpha = 0;
 
@@ -215,26 +238,30 @@ function playIntroCutsceneCountdown()
 	tweenCamPos(dadFocusX(), dadFocusY(), 2.75, FlxEase.expoOut);
 	tweenCamZoomAbs(1.1875, 2.75, FlxEase.expoOut);
 
-	new FlxTimer().start(0.5, function(_) game.dad.playAnim('intro', true, false));
+	scheduleCutsceneTimer(0.5, function(_) game.dad.playAnim('intro', true, false));
 
-	new FlxTimer().start(1.09, function(_)
+	scheduleCutsceneTimer(1.09, function(_)
 	{
 		FlxG.sound.play(Paths.sound('gameplay/countdown/hi_cutie'), 1);
 		showSubtitle('Hi Cutie!', 3.963);
 	});
 
-	new FlxTimer().start(4, function(_)
-	{
-		tweenCamZoomAbs(1.0, 4, FlxEase.smoothStepInOut);
+	scheduleCutsceneTimer(4, function(_) finishIntroCutsceneCountdown());
+}
 
-		game.inCutscene = false;
-		game.camHUD.visible = true;
-		game.camHUD.alpha = 0;
-		FlxTween.tween(game.camHUD, {alpha: 1}, 1, {ease: FlxEase.smoothStepInOut});
+function finishIntroCutsceneCountdown()
+{
+	activeCutsceneFinish = null;
+	if (cameraZoomTween != null) cameraZoomTween.cancel();
+	FlxG.camera.zoom = game.defaultCamZoom;
 
-		if (introMusic != null) introMusic.stop();
-		game.startCountdown();
-	});
+	game.inCutscene = false;
+	game.camHUD.visible = true;
+	game.camHUD.alpha = 0;
+	FlxTween.tween(game.camHUD, {alpha: 1}, 1, {ease: FlxEase.smoothStepInOut});
+
+	if (introMusic != null) introMusic.stop();
+	game.startCountdown();
 }
 
 // Subtitles for the cutscenes above (see PORT_INFO.md) - the original reads
@@ -266,6 +293,97 @@ function showSubtitle(text:String, duration:Float)
 	subtitleText.text = text;
 	subtitleText.alpha = 1;
 	new FlxTimer().start(duration, function(_) { if (subtitleText != null) subtitleText.alpha = 0; });
+}
+
+// --- Cutscene skip prompt (see PORT_INFO.md) - ported from the original's
+// skipText/canSkipCutscene/cutsceneSkipped pattern: first press of the skip
+// key fades in a "Hold [ACCEPT] to skip" prompt over 0.5s, a second press
+// after that actually skips. Every FlxTimer inside a cutscene is created
+// via scheduleCutsceneTimer() instead of "new FlxTimer()" directly so skip
+// can cancel all of them at once; each cutscene also assigns
+// activeCutsceneFinish to its own "finish" function so skip can jump
+// straight to the post-cutscene state. Known gap: skipping while an
+// FlxG.camera.fade() is actively running won't cancel that fade (no verified
+// way to do that from HScript), so a skip landing in that exact window can
+// leave the screen tinted briefly - a narrow edge case since fades mostly
+// happen late in each cutscene, when there's little reason left to skip.
+var cutsceneTimers:Array<FlxTimer> = [];
+var skipText:FlxText;
+var canSkipCutscene:Bool = false;
+var cutsceneSkipped:Bool = false;
+var activeCutsceneFinish:Void->Void;
+
+function scheduleCutsceneTimer(time:Float, cb:Float->Void):FlxTimer
+{
+	var t:FlxTimer = new FlxTimer().start(time, cb);
+	cutsceneTimers.push(t);
+	return t;
+}
+
+function skipKeyJustPressed():Bool
+{
+	return keyJustPressed('accept');
+}
+
+function setupSkipPrompt()
+{
+	cutsceneSkipped = false;
+	canSkipCutscene = false;
+
+	for (t in cutsceneTimers) if (t != null) t.cancel();
+	cutsceneTimers = [];
+
+	if (skipText == null)
+	{
+		skipText = new FlxText(0, FlxG.height - 60, FlxG.width - 20, '', 20);
+		skipText.setFormat(Paths.font('vcr.ttf'), 20, 0xFFFFFFFF, 'right', FlxTextBorderStyle.OUTLINE, 0xFF000000);
+		skipText.scrollFactor.set();
+		skipText.cameras = [FlxG.camera];
+		game.add(skipText);
+	}
+
+	skipText.text = 'Hold [ACCEPT] to skip';
+	skipText.alpha = 0;
+	skipText.visible = true;
+}
+
+function doSkipCutscene()
+{
+	cutsceneSkipped = true;
+	canSkipCutscene = false;
+	if (skipText != null) skipText.visible = false;
+	if (subtitleText != null) subtitleText.alpha = 0;
+
+	for (t in cutsceneTimers) if (t != null) t.cancel();
+	cutsceneTimers = [];
+
+	if (activeCutsceneFinish != null)
+	{
+		var finish:Void->Void = activeCutsceneFinish;
+		activeCutsceneFinish = null;
+		finish();
+	}
+}
+
+function updateSkipPrompt()
+{
+	if (!game.inCutscene || cutsceneSkipped || skipText == null) return;
+
+	if (skipKeyJustPressed())
+	{
+		if (!canSkipCutscene)
+		{
+			if (skipText.alpha == 0)
+			{
+				FlxTween.tween(skipText, {alpha: 1}, 0.5, {ease: FlxEase.quadOut});
+				scheduleCutsceneTimer(0.5, function(_) canSkipCutscene = true);
+			}
+		}
+		else
+		{
+			doSkipCutscene();
+		}
+	}
 }
 
 function onEvent(eventName:String, value1:String, value2:String, strumTime:Float)
@@ -405,4 +523,5 @@ function decayCameraBop(elapsed:Float)
 function onUpdate(elapsed:Float)
 {
 	decayCameraBop(elapsed);
+	updateSkipPrompt();
 }

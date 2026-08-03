@@ -152,8 +152,8 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 
 // --- Blissful Erect ending cutscene, ported from blissful-erect.hxc's
 // onSongEnd(). Camera choreography + sound cues + the dedicated dad/bf poses
-// are kept, along with the subtitle line (showSubtitle() below); the
-// press-key-to-skip prompt is still dropped (see PORT_INFO.md). Dad's
+// are kept, along with the subtitle line (showSubtitle() below) and the
+// skip-key prompt (setupSkipPrompt()/updateSkipPrompt() below). Dad's
 // "erectEnding" pose and bf's "shoulderSwish" both live in the qt-erect /
 // bf-qt-erect Animate atlases as frame labels (no symbol dictionary entry),
 // so they're registered with addByFrameLabel the same way qtStagePico's
@@ -176,6 +176,9 @@ function playEndingCutscene()
 	if (cameraFollowTween != null) cameraFollowTween.cancel();
 	if (cameraZoomTween != null) cameraZoomTween.cancel();
 
+	setupSkipPrompt();
+	activeCutsceneFinish = finishEndingCutscene;
+
 	FlxTween.tween(game.camHUD, {alpha: 0}, 1.2, {
 		ease: FlxEase.quadOut,
 		onComplete: function(_) game.camHUD.visible = false
@@ -189,57 +192,60 @@ function playEndingCutscene()
 
 	FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/qt_erect_ending'));
 	outroMusic = FlxG.sound.play(Paths.music('gameplay/introSong/outroSong-erect'), 0.2);
-	new FlxTimer().start(3.72, function(_) showSubtitle("You're kind of a show-off, huh?", 2.52));
+	scheduleCutsceneTimer(3.72, function(_) showSubtitle("You're kind of a show-off, huh?", 2.52));
 
 	tweenCamPos(510, 923, 2.7, FlxEase.quartInOut);
 	tweenCamZoomAbs(1.20, 2.7, FlxEase.quartInOut);
 
-	new FlxTimer().start(0.458, function(_) game.dad.playAnim('erectEnding', true));
+	scheduleCutsceneTimer(0.458, function(_) game.dad.playAnim('erectEnding', true));
 
-	new FlxTimer().start(2.35, function(_)
+	scheduleCutsceneTimer(2.35, function(_)
 	{
 		tweenCamPos(538, 923, 2, FlxEase.expoOut);
 		tweenCamZoomAbs(1.08, 2, FlxEase.expoOut);
 	});
 
-	new FlxTimer().start(4.65, function(_)
+	scheduleCutsceneTimer(4.65, function(_)
 	{
 		tweenCamPos(538, 923, 0.8, FlxEase.quartIn);
 		tweenCamZoomAbs(1.16, 0.8, FlxEase.quartIn);
 	});
 
-	new FlxTimer().start(4.95, function(_)
+	scheduleCutsceneTimer(4.95, function(_)
 	{
 		tweenCamPos(538, 923, 2.2, FlxEase.expoOut);
 		tweenCamZoomAbs(1.12, 2.2, FlxEase.expoOut);
 	});
 
-	new FlxTimer().start(5.75, function(_)
+	scheduleCutsceneTimer(5.75, function(_)
 	{
 		tweenCamPos(538, 923, 1.4, FlxEase.expoOut);
 		tweenCamZoomAbs(1.0, 1.4, FlxEase.expoOut);
 	});
 
-	new FlxTimer().start(6.4, function(_)
+	scheduleCutsceneTimer(6.4, function(_)
 	{
 		tweenCamPos(1040, 931, 2.1, FlxEase.quartInOut);
 		tweenCamZoomAbs(1.0, 2.1, FlxEase.quartInOut);
 	});
 
-	new FlxTimer().start(7.942, function(_) FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/bf_erect_shoulder_swish')));
+	scheduleCutsceneTimer(7.942, function(_) FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/bf_erect_shoulder_swish')));
 
-	new FlxTimer().start(7.958, function(_) game.boyfriend.playAnim('shoulderSwish', true));
+	scheduleCutsceneTimer(7.958, function(_) game.boyfriend.playAnim('shoulderSwish', true));
 
-	new FlxTimer().start(8.4, function(_) tweenCamPos(1040, 320, 2.9, FlxEase.quartIn));
+	scheduleCutsceneTimer(8.4, function(_) tweenCamPos(1040, 320, 2.9, FlxEase.quartIn));
 
-	new FlxTimer().start(9.3, function(_) FlxG.camera.fade(0xFF000000, 2.0, false, null, true));
+	scheduleCutsceneTimer(9.3, function(_) FlxG.camera.fade(0xFF000000, 2.0, false, null, true));
 
-	new FlxTimer().start(14, function(_)
-	{
-		game.inCutscene = false;
-		if (outroMusic != null) outroMusic.stop();
-		game.endSong();
-	});
+	scheduleCutsceneTimer(14, function(_) finishEndingCutscene());
+}
+
+function finishEndingCutscene()
+{
+	activeCutsceneFinish = null;
+	game.inCutscene = false;
+	if (outroMusic != null) outroMusic.stop();
+	game.endSong();
 }
 
 function tweenCamPos(x:Float, y:Float, duration:Float, ease:Float->Float)
@@ -290,17 +296,104 @@ function showSubtitle(text:String, duration:Float)
 	new FlxTimer().start(duration, function(_) { if (subtitleText != null) subtitleText.alpha = 0; });
 }
 
+// --- Cutscene skip prompt, shared by both cutscenes in this file (see
+// PORT_INFO.md) - ported from the original's skipText/canSkipCutscene/
+// cutsceneSkipped pattern: first press of the skip key fades in a
+// "Hold [ACCEPT] to skip" prompt over 0.5s, a second press after that
+// actually skips. Every FlxTimer inside either cutscene is created via
+// scheduleCutsceneTimer() instead of "new FlxTimer()" directly so skip can
+// cancel all of them at once. Known gap: skipping while an
+// FlxG.camera.fade() is actively running won't cancel that fade (no verified
+// way to do that from HScript).
+var cutsceneTimers:Array<FlxTimer> = [];
+var skipText:FlxText;
+var canSkipCutscene:Bool = false;
+var cutsceneSkipped:Bool = false;
+var activeCutsceneFinish:Void->Void;
+
+function scheduleCutsceneTimer(time:Float, cb:Float->Void):FlxTimer
+{
+	var t:FlxTimer = new FlxTimer().start(time, cb);
+	cutsceneTimers.push(t);
+	return t;
+}
+
+function skipKeyJustPressed():Bool
+{
+	return keyJustPressed('accept');
+}
+
+function setupSkipPrompt()
+{
+	cutsceneSkipped = false;
+	canSkipCutscene = false;
+
+	for (t in cutsceneTimers) if (t != null) t.cancel();
+	cutsceneTimers = [];
+
+	if (skipText == null)
+	{
+		skipText = new FlxText(0, FlxG.height - 60, FlxG.width - 20, '', 20);
+		skipText.setFormat(Paths.font('vcr.ttf'), 20, 0xFFFFFFFF, 'right', FlxTextBorderStyle.OUTLINE, 0xFF000000);
+		skipText.scrollFactor.set();
+		skipText.cameras = [FlxG.camera];
+		game.add(skipText);
+	}
+
+	skipText.text = 'Hold [ACCEPT] to skip';
+	skipText.alpha = 0;
+	skipText.visible = true;
+}
+
+function doSkipCutscene()
+{
+	cutsceneSkipped = true;
+	canSkipCutscene = false;
+	if (skipText != null) skipText.visible = false;
+	if (subtitleText != null) subtitleText.alpha = 0;
+
+	for (t in cutsceneTimers) if (t != null) t.cancel();
+	cutsceneTimers = [];
+
+	if (activeCutsceneFinish != null)
+	{
+		var finish:Void->Void = activeCutsceneFinish;
+		activeCutsceneFinish = null;
+		finish();
+	}
+}
+
+function updateSkipPrompt()
+{
+	if (!game.inCutscene || cutsceneSkipped || skipText == null) return;
+
+	if (skipKeyJustPressed())
+	{
+		if (!canSkipCutscene)
+		{
+			if (skipText.alpha == 0)
+			{
+				FlxTween.tween(skipText, {alpha: 1}, 0.5, {ease: FlxEase.quadOut});
+				scheduleCutsceneTimer(0.5, function(_) canSkipCutscene = true);
+			}
+		}
+		else
+		{
+			doSkipCutscene();
+		}
+	}
+}
+
 // --- Blissful Erect intro cutscene, ported from blissful-erect.hxc's
 // onCountdownStart(). Dad needs the qt-erect atlas again for its
 // "erectIntro1"/"erectIntro2" poses (frame labels, addByFrameLabel like the
 // ending cutscene) - swapped back to "qt" at the end since real gameplay
-// needs the normal singing character. Subtitle lines are kept (same
-// showSubtitle() as the ending cutscene above); the skip-key prompt is
-// still dropped, same as the other cutscenes - see PORT_INFO.md. The original's
-// danceQT/QTErectDanceSprite overlay sprite (used during onCreate for the
-// caramelldansen section) isn't ported - this mod already handles that
-// section via the Change Character swap instead, a different but working
-// approach - see PORT_INFO.md.
+// needs the normal singing character. Subtitle lines and the skip-key
+// prompt (same showSubtitle()/setupSkipPrompt() as the ending cutscene
+// above) are both kept. The original's danceQT/QTErectDanceSprite overlay
+// sprite (used during onCreate for the caramelldansen section) isn't
+// ported - this mod already handles that section via the Change Character
+// swap instead, a different but working approach - see PORT_INFO.md.
 var hasPlayedIntroCutscene:Bool = false;
 var introMusic:Dynamic;
 
@@ -318,6 +411,9 @@ function playIntroCutscene()
 	game.isCameraOnForcedPos = true;
 	if (cameraFollowTween != null) cameraFollowTween.cancel();
 	if (cameraZoomTween != null) cameraZoomTween.cancel();
+
+	setupSkipPrompt();
+	activeCutsceneFinish = finishIntroCutscene;
 
 	game.camHUD.visible = false;
 	game.camHUD.alpha = 0;
@@ -348,74 +444,81 @@ function playIntroCutscene()
 	tweenCamPos(538, 923, 3.4, FlxEase.expoOut);
 	tweenCamZoomAbs(1.08, 3.4, FlxEase.expoOut);
 
-	new FlxTimer().start(0.90, function(_)
+	scheduleCutsceneTimer(0.90, function(_)
 	{
 		dad.playAnim('erectIntro1', true, false);
 		FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/qt_erect_intro_1'));
 		showSubtitle('Alright, cutie...', 1.676);
 	});
 
-	new FlxTimer().start(0.90 + 1.70, function(_) showSubtitle('Think you can keep up?', 1.45));
+	scheduleCutsceneTimer(0.90 + 1.70, function(_) showSubtitle('Think you can keep up?', 1.45));
 
-	new FlxTimer().start(2.59, function(_)
+	scheduleCutsceneTimer(2.59, function(_)
 	{
 		tweenCamPos(510, 923, 3, FlxEase.expoOut);
 		tweenCamZoomAbs(1.16, 3, FlxEase.expoOut);
 	});
 
-	new FlxTimer().start(3.483, function(_)
+	scheduleCutsceneTimer(3.483, function(_)
 	{
 		tweenCamPos(1090, 931, 2.6, FlxEase.quartInOut);
 		tweenCamZoomAbs(1.30, 2.6, FlxEase.quartInOut);
 	});
 
-	new FlxTimer().start(4.341, function(_)
+	scheduleCutsceneTimer(4.341, function(_)
 	{
 		bf.playAnim('superHey', true, false);
 		FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/bf_erect_yeah'));
 	});
 
-	new FlxTimer().start(5.7, function(_)
+	scheduleCutsceneTimer(5.7, function(_)
 	{
 		tweenCamPos(1040, 931, 0.8, FlxEase.elasticOut);
 		tweenCamZoomAbs(1.16, 0.8, FlxEase.elasticOut);
 	});
 
-	new FlxTimer().start(5.74, function(_) triggerPinkFlash([FlxG.camera]));
+	scheduleCutsceneTimer(5.74, function(_) triggerPinkFlash([FlxG.camera]));
 
-	new FlxTimer().start(6, function(_) dad.playAnim('erectIntro2', true, false));
+	scheduleCutsceneTimer(6, function(_) dad.playAnim('erectIntro2', true, false));
 
-	new FlxTimer().start(6.25, function(_)
+	scheduleCutsceneTimer(6.25, function(_)
 	{
 		tweenCamPos(510, 923, 2.5, FlxEase.quartInOut);
 		tweenCamZoomAbs(1.16, 2.5, FlxEase.quartInOut);
 	});
 
-	new FlxTimer().start(7.1, function(_)
+	scheduleCutsceneTimer(7.1, function(_)
 	{
 		FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/qt_erect_intro_2'));
 		showSubtitle("Pfft, we'll see about that!", 2.0);
 	});
 
-	new FlxTimer().start(8.4, function(_)
+	scheduleCutsceneTimer(8.4, function(_)
 	{
 		tweenCamPos(dadFocusX(), dadFocusY(), 4.5, FlxEase.quartInOut);
 		tweenCamZoomAbs(1.0, 4.5, FlxEase.quartInOut);
 	});
 
-	new FlxTimer().start(9.8, function(_)
-	{
-		// Swap dad back to the real singing character before gameplay starts.
-		game.triggerEvent('Change Character', 'dad', 'qt', 0);
+	scheduleCutsceneTimer(9.8, function(_) finishIntroCutscene());
+}
 
-		game.inCutscene = false;
-		game.camHUD.visible = true;
-		game.camHUD.alpha = 0;
-		FlxTween.tween(game.camHUD, {alpha: 1}, 1, {ease: FlxEase.smoothStepInOut});
+function finishIntroCutscene()
+{
+	activeCutsceneFinish = null;
 
-		if (introMusic != null) introMusic.stop();
-		game.startCountdown();
-	});
+	// Swap dad back to the real singing character before gameplay starts.
+	game.triggerEvent('Change Character', 'dad', 'qt', 0);
+
+	if (cameraZoomTween != null) cameraZoomTween.cancel();
+	FlxG.camera.zoom = game.defaultCamZoom;
+
+	game.inCutscene = false;
+	game.camHUD.visible = true;
+	game.camHUD.alpha = 0;
+	FlxTween.tween(game.camHUD, {alpha: 1}, 1, {ease: FlxEase.smoothStepInOut});
+
+	if (introMusic != null) introMusic.stop();
+	game.startCountdown();
 }
 
 // --- Camera focus/zoom events, ported with real tweening (Psych's native
@@ -563,6 +666,7 @@ function decayCameraBop(elapsed:Float)
 function onUpdate(elapsed:Float)
 {
 	decayCameraBop(elapsed);
+	updateSkipPrompt();
 
 	if (!game.inCutscene && currentFlashIndex < gameplayFlashTimes.length)
 	{

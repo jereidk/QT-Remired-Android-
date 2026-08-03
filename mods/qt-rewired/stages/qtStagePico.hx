@@ -165,10 +165,10 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 // onEndSong cutscenes use elsewhere). Camera choreography, dad's
 // "still"/"intro" frame-label poses (already on the qt atlas), a standalone
 // overlay for bf's "introbl" pose, the hi_cutie/picoWave/introSong-pico
-// sound cues, and the hi-cutie subtitle (showSubtitle() below) are kept.
-// The skip-key prompt, the GF beat-synced head bop and the 1%-chance
-// easter egg branch (which even opens a YouTube URL in the original) are
-// all dropped - see PORT_INFO.md.
+// sound cues, the hi-cutie subtitle (showSubtitle() below), and the skip-key
+// prompt (setupSkipPrompt()/updateSkipPrompt() below) are kept. The GF
+// beat-synced head bop and the 1%-chance easter egg branch (which even
+// opens a YouTube URL in the original) are dropped - see PORT_INFO.md.
 var hasPlayedIntroCutscene:Bool = false;
 var picoOverlay:FlxAnimate;
 
@@ -191,6 +191,9 @@ function playIntroCutscene()
 	game.isCameraOnForcedPos = true;
 	game.camHUD.visible = false;
 	game.camHUD.alpha = 0;
+
+	setupSkipPrompt();
+	activeCutsceneFinish = finishIntroCutscene;
 
 	if (game.dad.atlas != null)
 	{
@@ -222,15 +225,15 @@ function playIntroCutscene()
 	tweenCamPos(dadFocusX(), dadFocusY(), 2.75, FlxEase.expoOut);
 	tweenCamZoomAbs(1.1875, 2.75, FlxEase.expoOut);
 
-	new FlxTimer().start(0.5, function(_) game.dad.playAnim('intro', true, false));
+	scheduleCutsceneTimer(0.5, function(_) game.dad.playAnim('intro', true, false));
 
-	new FlxTimer().start(0.98, function(_)
+	scheduleCutsceneTimer(0.98, function(_)
 	{
 		FlxG.sound.play(Paths.sound('gameplay/countdown/hi_cutie'), 1);
 		showSubtitle('Hi Cutie!', 3.963);
 	});
 
-	new FlxTimer().start(3.5, function(_)
+	scheduleCutsceneTimer(3.5, function(_)
 	{
 		tweenCamPos(playerFocusX() + 100, playerFocusY(), 3, FlxEase.quadInOut);
 		game.boyfriend.visible = false;
@@ -239,23 +242,29 @@ function playIntroCutscene()
 		picoOverlay.anim.play('introbl', true);
 	});
 
-	new FlxTimer().start(4.15, function(_) FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/pico/introCutscene/picoWave')));
+	scheduleCutsceneTimer(4.15, function(_) FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/pico/introCutscene/picoWave')));
 
-	new FlxTimer().start(6.35, function(_) tweenCamZoomAbs(1.25, 1.5, FlxEase.quadInOut));
+	scheduleCutsceneTimer(6.35, function(_) tweenCamZoomAbs(1.25, 1.5, FlxEase.quadInOut));
 
-	new FlxTimer().start(11, function(_)
+	scheduleCutsceneTimer(11, function(_) finishIntroCutscene());
+}
+
+function finishIntroCutscene()
+{
+	activeCutsceneFinish = null;
+	game.boyfriend.visible = true;
+	if (picoOverlay != null)
 	{
-		game.boyfriend.visible = true;
-		if (picoOverlay != null)
-		{
-			picoOverlay.visible = false;
-			game.remove(picoOverlay);
-		}
-		game.camHUD.visible = true;
-		game.camHUD.alpha = 0;
-		FlxTween.tween(game.camHUD, {alpha: 1}, 1, {ease: FlxEase.smoothStepInOut});
-		game.startCountdown();
-	});
+		picoOverlay.visible = false;
+		game.remove(picoOverlay);
+	}
+	if (cameraZoomTween != null) cameraZoomTween.cancel();
+	FlxG.camera.zoom = game.defaultCamZoom;
+	game.inCutscene = false;
+	game.camHUD.visible = true;
+	game.camHUD.alpha = 0;
+	FlxTween.tween(game.camHUD, {alpha: 1}, 1, {ease: FlxEase.smoothStepInOut});
+	game.startCountdown();
 }
 
 function tweenCamPos(x:Float, y:Float, duration:Float, ease:Float->Float)
@@ -301,6 +310,93 @@ function showSubtitle(text:String, duration:Float)
 	subtitleText.text = text;
 	subtitleText.alpha = 1;
 	new FlxTimer().start(duration, function(_) { if (subtitleText != null) subtitleText.alpha = 0; });
+}
+
+// --- Cutscene skip prompt (see PORT_INFO.md) - ported from the original's
+// skipText/canSkipCutscene/cutsceneSkipped pattern: first press of the skip
+// key fades in a "Hold [ACCEPT] to skip" prompt over 0.5s, a second press
+// after that actually skips. Every FlxTimer inside the cutscene is created
+// via scheduleCutsceneTimer() instead of "new FlxTimer()" directly so skip
+// can cancel all of them at once. Known gap: skipping while an
+// FlxG.camera.fade() is actively running won't cancel that fade (no verified
+// way to do that from HScript).
+var cutsceneTimers:Array<FlxTimer> = [];
+var skipText:FlxText;
+var canSkipCutscene:Bool = false;
+var cutsceneSkipped:Bool = false;
+var activeCutsceneFinish:Void->Void;
+
+function scheduleCutsceneTimer(time:Float, cb:Float->Void):FlxTimer
+{
+	var t:FlxTimer = new FlxTimer().start(time, cb);
+	cutsceneTimers.push(t);
+	return t;
+}
+
+function skipKeyJustPressed():Bool
+{
+	return keyJustPressed('accept');
+}
+
+function setupSkipPrompt()
+{
+	cutsceneSkipped = false;
+	canSkipCutscene = false;
+
+	for (t in cutsceneTimers) if (t != null) t.cancel();
+	cutsceneTimers = [];
+
+	if (skipText == null)
+	{
+		skipText = new FlxText(0, FlxG.height - 60, FlxG.width - 20, '', 20);
+		skipText.setFormat(Paths.font('vcr.ttf'), 20, 0xFFFFFFFF, 'right', FlxTextBorderStyle.OUTLINE, 0xFF000000);
+		skipText.scrollFactor.set();
+		skipText.cameras = [FlxG.camera];
+		game.add(skipText);
+	}
+
+	skipText.text = 'Hold [ACCEPT] to skip';
+	skipText.alpha = 0;
+	skipText.visible = true;
+}
+
+function doSkipCutscene()
+{
+	cutsceneSkipped = true;
+	canSkipCutscene = false;
+	if (skipText != null) skipText.visible = false;
+	if (subtitleText != null) subtitleText.alpha = 0;
+
+	for (t in cutsceneTimers) if (t != null) t.cancel();
+	cutsceneTimers = [];
+
+	if (activeCutsceneFinish != null)
+	{
+		var finish:Void->Void = activeCutsceneFinish;
+		activeCutsceneFinish = null;
+		finish();
+	}
+}
+
+function updateSkipPrompt()
+{
+	if (!game.inCutscene || cutsceneSkipped || skipText == null) return;
+
+	if (skipKeyJustPressed())
+	{
+		if (!canSkipCutscene)
+		{
+			if (skipText.alpha == 0)
+			{
+				FlxTween.tween(skipText, {alpha: 1}, 0.5, {ease: FlxEase.quadOut});
+				scheduleCutsceneTimer(0.5, function(_) canSkipCutscene = true);
+			}
+		}
+		else
+		{
+			doSkipCutscene();
+		}
+	}
 }
 
 // --- Camera focus/zoom events, ported with real tweening (Psych's native
@@ -433,4 +529,5 @@ function decayCameraBop(elapsed:Float)
 function onUpdate(elapsed:Float)
 {
 	decayCameraBop(elapsed);
+	updateSkipPrompt();
 }
