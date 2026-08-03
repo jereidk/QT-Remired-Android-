@@ -61,7 +61,15 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   variante en el mod original se renombran sin sufijo dentro de la carpeta de
   cada canción para poder reusar el mismo personaje en varias variantes).
 - `weeks/QT.json` — las 7 canciones/variantes aparecen en Freeplay y Story
-  Mode.
+  Mode. **`images/storymenu/QT.png`** (la cápsula estática que Psych muestra
+  en la lista de semanas del Story Menu, `MenuItem.hx`) faltaba por completo
+  hasta esta revisión — probablemente un bug real, no solo cosmético
+  (`Paths.image()` devuelve `null` en vez de tirar excepción cuando no
+  encuentra el archivo, pero `MenuItem` no chequea null antes de usar el
+  gráfico). Se resolvió copiando el asset `storymenu/titles/weekqt.png` del
+  paquete original (422×94, misma proporción que las cápsulas vanilla) a esa
+  ruta — el archivo ya estaba disponible, antes se había concluido
+  erróneamente que "no tenía a dónde ir" (ver limitación 6).
 - **`scripts/gameOverQuotes.hx`** (script global, no atado a ningún stage
   particular — se carga para las 7 canciones vía el mismo mecanismo de
   `scripts/` que usa Psych para cualquier mod, `Mods.directoriesWithFile(...,
@@ -356,10 +364,26 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    propio para ellos en el mod). El `scale: 0.65` es una estimación por
    proporción de tamaño de frame contra `Menu_BF` — no se pudo verificar
    visualmente en este entorno (no hay forma de compilar/ejecutar el juego
-   acá), así que puede necesitar ajuste. También había un
-   `images/storymenu/titles/weekqt.png` en el paquete original, pero Psych
-   no tiene un slot de imagen para el título de semana en el story menu (es
-   texto plano, `txtWeekTitle`), así que no tiene a dónde ir.
+   acá), así que puede necesitar ajuste. **Corrección de una revisión
+   posterior**: se había concluido antes que `images/storymenu/titles/
+   weekqt.png` "no tenía a dónde ir" porque Psych no tiene un slot de imagen
+   para el título de semana - error. Leyendo `source/objects/MenuItem.hx` y
+   `source/states/StoryMenuState.hx` se confirmó que la CÁPSULA de la lista
+   de semanas (lo que se ve ANTES de entrar a la semana, distinto del
+   `MenuCharacter` de abajo) es `loadGraphic(Paths.image('storymenu/' +
+   weekName))` — una imagen estática simple, `images/storymenu/QT.png` en
+   este mod (`weekName` sale del nombre de archivo `weeks/QT.json`) — y este
+   archivo **nunca se había copiado**. `Paths.image()` devuelve `null` si no
+   encuentra el archivo (con un trace de advertencia, no explota ahí mismo),
+   pero `MenuItem` no chequea null antes de usar el gráfico — es decir que
+   el Story Menu probablemente rompía o mostraba basura cada vez que este
+   mod estaba activo, no solo al entrar a esta semana puntual sino
+   potencialmente al abrir el Story Menu en general (el bucle que arma
+   `grpWeekText` itera TODAS las semanas cargadas). Se resolvió copiando
+   exactamente ese `weekqt.png` (422×94, proporción parecida a las cápsulas
+   vanilla como `week3.png` de 358×89) a `images/storymenu/QT.png` — el
+   asset ya estaba ahí, solo hacía falta ponerlo en la ruta que Psych
+   realmente lee.
 7. **`SetCameraBop` ya replica el modelo del original al completo** (zoom
    "base" separado del multiplicador de bop, igual que
    `zoomPlusBop = currentCameraZoom * cameraBopMultiplier` en
@@ -523,11 +547,21 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
     equivalente en Psych.** Encontrados al revisar sistemáticamente qué
     quedaba del paquete original sin ni siquiera documentar:
     - **Note skins propios por variante** (`data/notestyles/funkin-qt-2021`/
-      `funkin-qt-dodge`) — en Psych el skin de notas es una preferencia
-      GLOBAL del jugador (`ClientPrefs.data.noteSkin`, confirmado en
-      `source/objects/Note.hx`), no algo que una canción/mod pueda forzar
-      sin tocar `source/` (y afectaría a las notas de cualquier otro mod
-      también). Se usan las notas default de Psych.
+      `funkin-qt-dodge`) — revisados un poco más a fondo en una segunda
+      pasada: **ninguno de los dos trae arte propio**, ambos apuntan a
+      `"assetPath": "shared:notes"`/`"shared:noteStrumline"` (las notas
+      VANILLA de Funkin', no un reskin de QT) — la única diferencia real es
+      `"scale": 0.7` en vez del tamaño default. En Psych el skin de notas es
+      una preferencia GLOBAL del jugador (`ClientPrefs.data.noteSkin`,
+      confirmado en `source/objects/Note.hx`/`StrumNote.hx`), y aunque
+      HScript SÍ puede leer/escribir ese campo directamente (es un `public
+      static` real, sin necesidad de tocar `source/`), mutar una preferencia
+      global del jugador solo para escalar las notas 0.7x en estas
+      variantes — y tener que restaurarla sin fallos en TODOS los caminos de
+      salida (fin normal, retry, game over, pausa→salir al menú) — es un
+      riesgo real para un beneficio casi nulo, dado que no hay ningún arte
+      que se esté perdiendo. Se descartó por esa relación costo/beneficio,
+      no por imposibilidad técnica.
     - **Sticker packs** (`data/stickerpacks/*.json`) — sistema de
       "coleccionables" exclusivo del motor moderno, Psych 0.7.3 no tiene
       nada parecido.
@@ -548,12 +582,35 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
       `props` — QT/BF/GF con animaciones idle/confirm en la lista de
       semanas) — distinta del `MenuCharacter` que ya se portó (limitación 6,
       el que aparece DESPUÉS de entrar a la semana). Psych arma esa lista
-      con un gráfico estático por semana, no con props animados por
-      personaje; portarlo bien requeriría tocar `StoryMenuState.hx`.
+      con un gráfico ESTÁTICO por semana (`MenuItem.hx`:
+      `loadGraphic(Paths.image('storymenu/' + weekName))`), no con props
+      animados por personaje; portar la versión animada del original
+      requeriría tocar `StoryMenuState.hx`/`MenuItem.hx`. Lo que SÍ se
+      arregló de esto (ver limitación 6): a la cápsula ESTÁTICA
+      (`images/storymenu/QT.png`) directamente le faltaba el archivo — un
+      bug real, no solo una limitación de fidelidad.
     - **`MissesExceptionsModule.hxc`** (suprime el ghost-tap-miss mientras
-      BF juega ciertas animaciones) — mismo límite ya documentado en la
-      limitación 4: `noteMissPress` de Psych corre después de aplicar la
-      penalización, no hay forma de cancelarla desde HScript.
+      BF juega ciertas animaciones) — revisado de nuevo, con más cuidado:
+      SÍ existe un hook anterior a la penalización, `onKeyPressPre`
+      (`PlayState.hx:2663`, devolver `Function_Stop` cancela toda la función
+      `keyPressed` antes de que se calcule si la tecla acierta una nota o no
+      — confirmado leyendo el código fuente real). El problema es que ese
+      hook se dispara ANTES de que el motor determine si hay una nota real
+      para acertar con esa tecla, así que cancelar ahí a ciegas también
+      bloquearía notas legítimas durante esa ventana, no solo el ghost-tap.
+      Para hacerlo bien habría que reimplementar en HScript el mismo filtro
+      de "¿hay una nota acertable para esta tecla ahora?" que usa
+      `keyPressed()` internamente (`strumsBlocked`/`canBeHit`/`mustPress`/
+      `tooLate`/`wasGoodHit`/`blockHit`) — o, alternativa, dejar que la
+      penalización se aplique y tratar de revertirla a mano en
+      `noteMissPress` (restaurar vida/combo/score) sin poder verificar en
+      este entorno si esa compensación queda perfectamente prolija o deja
+      las estadísticas de precisión de la canción en un estado sutilmente
+      raro. Ambos caminos son técnicamente alcanzables desde la carpeta de
+      mod (no tocan `source/`), pero el riesgo de romper el tracking de
+      combo/precisión por una función de bajo impacto (evitar un miss
+      durante ~2s de un video ya con las notas atenuadas) no compensa el
+      beneficio — se dejó sin portar por esa razón, no por imposibilidad.
     - Lo que SÍ se rescató de esta revisión y ya está portado (ver "Estado
       actual"): las citas de voz + subtítulo al morir
       (`scripts/gameOverQuotes.hx`, desde `GameOverSubtitles.hxc`) y el
