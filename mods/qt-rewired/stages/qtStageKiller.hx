@@ -171,6 +171,7 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 	else if (eventName == 'ZoomCamera') zoomCamera(value1, value2);
 	else if (eventName == 'SetCameraBop') setCameraBop(value1, value2);
 	else if (eventName == 'changeStage') changeStageColor(value1);
+	else if (eventName == 'blackIn') blackScreen.alpha = 1;
 }
 
 // Recolors tvLights/lightOverlay to match the chart's "changeStage" cues

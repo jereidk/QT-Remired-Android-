@@ -75,6 +75,11 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
 - **`changeStage`** (Obliterated/Obliterated-legacy): recolorea `tvLights`/
   `lightOverlay` entre Normal/Killer/Blue/Red — confirmado que eso es
   literalmente todo lo que hace el evento original (no cambia de escenario).
+- **`blackIn`** (Obliterated/Obliterated-legacy, último evento de ambos
+  charts): `blackScreen.alpha = 1` instantáneo en `qtStageKiller.hx` — igual
+  de simple en el original. Ver limitación 4 sobre por qué
+  `cutsceneVideo`/`fadeStart` (los otros dos eventos "de video" del mismo
+  chart) no se portaron.
 - **Keybind de esquive configurable + modos instakill/disabled**
   (`data/settings.json`, un archivo de opciones de mod estándar de Psych):
   el menú de "Mod Settings" del juego ahora tiene "Dodge Key" (rebindeable,
@@ -181,7 +186,23 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    correctamente para Obliterated/Obliterated-legacy (`tvLights`/
    `lightOverlay` cambian entre Normal/Killer/Blue/Red, que es literalmente
    todo lo que hacía el evento original — no mueve ni cambia ningún otro
-   prop). `blackIn`/`cutsceneVideo`/`fadeStart` siguen sin portar.
+   prop). `blackIn` también está portado (`qtStageKiller.hx`, es el último
+   evento de ambos charts — un simple `blackScreen.alpha = 1` instantáneo, ni
+   siquiera tenía tween en el original). **`cutsceneVideo`/`cutsceneVideoOut`/
+   `fadeStart` NO se portaron y quedan como limitación arquitectónica, no
+   como pendiente trivial**: el original reproduce un video real
+   (`videos/cutscene.mp4`, vía `FunkinVideoSprite`) SUPERPUESTO sobre el
+   gameplay en vivo mientras las notas siguen cayendo (con los misses
+   deshabilitados durante el video). Psych sí trae soporte de video nativo
+   (`hxCodec`, ver `PlayState.startVideo()`), pero está diseñado únicamente
+   para tomar la pantalla completa antes o después de una canción — no hay
+   forma limpia de superponer un video como sprite dentro del gameplay activo
+   sin acceder directamente a las clases de `hxCodec` desde HScript, algo que
+   ningún otro script de este mod hace y que no se pudo verificar sin poder
+   compilar/ejecutar el juego en este entorno. Implementarlo a medias
+   (portar solo el fundido a negro de `fadeStart` sin el video real) dejaría
+   la pantalla en negro permanentemente en mitad de la canción, que es peor
+   que no portarlo. Ver "Próximos pasos".
 5. **Difficulties no estándar remapeadas a easy/normal/hard.** El mod
    original usa nombres de dificultad propios por variante (`erect`/
    `nightmare` en vez de las 3 estándar); para mantener consistencia con el
@@ -234,15 +255,19 @@ erect, Blissful pico) ya están portadas casi por completo. Lo que queda:
 
 1. Portrait de Story Menu específico para QT/KB/Pico (en vez de caer al
    genérico de BF).
-2. `blackIn`/`cutsceneVideo`/`fadeStart` (eventos de Obliterated/legacy sin
-   portar — no están relacionados con ninguna de las 3 cutscenes ya hechas).
-3. Curva de decaimiento exacta para `SetCameraBop` (actualmente es un tween
+2. Curva de decaimiento exacta para `SetCameraBop` (actualmente es un tween
    de ida y vuelta de duración fija, no la exponencial continua del original).
-4. Subtítulos y mecanismo de skip para las 3 cutscenes (limitaciones 3/8) —
+3. Subtítulos y mecanismo de skip para las 3 cutscenes (limitaciones 3/8) —
    requeriría un sistema de subtítulos propio en HScript ya que Psych no
    trae uno nativo.
-5. Overlay de la pose `introbl` de Blissful-pico más preciso (limitación 10)
+4. Overlay de la pose `introbl` de Blissful-pico más preciso (limitación 10)
    y/o bop de GF sincronizado a los beats de `introSong-pico`.
+5. `cutsceneVideo`/`cutsceneVideoOut`/`fadeStart` de Obliterated (video
+   superpuesto en gameplay en vivo) — ver limitación 4 sobre por qué esto es
+   una limitación arquitectónica de Psych, no un simple pendiente; requeriría
+   experimentar con las clases de `hxCodec` directamente desde HScript (sin
+   poder compilar/probar en este entorno) y probablemente solo seria seguro
+   de intentar con acceso a un build real del juego para verificar.
 
 ## Notas de implementación por variante
 
