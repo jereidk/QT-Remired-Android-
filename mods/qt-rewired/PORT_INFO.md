@@ -69,9 +69,14 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   el auto-seguimiento de Psych pise el tween cada sección. Se portaron **~1027
   eventos de cámara** en total entre las 7 canciones (25-118 FocusCamera y
   36-169 ZoomCamera por canción, ver `data/*/events.json`).
-- **`SetCameraBop`** (oscilación de zoom por beat) en los 6 stages: un tween
-  de ida y vuelta cada N beats (parámetros `intensity,rate,offset` del chart
-  original), usando `getVar('curBeat')` para saber en qué beat va la canción.
+- **`SetCameraBop`** (oscilación de zoom por beat) en los 6 stages, con la
+  curva de decaimiento exponencial real de FunkinCrew
+  (`cameraBopMultiplier = lerp(1, cameraBopMultiplier, 0.95^(elapsed*60))`
+  cada frame, leída directo de `PlayState.hx`/`SetCameraBopSongEvent.hx`),
+  en vez del tween de ida y vuelta de duración fija que había antes. Se
+  pausa mientras un evento `ZoomCamera` tiene un tween activo (para no pelear
+  por `FlxG.camera.zoom`) — ver limitación 7 sobre esta única diferencia
+  restante con el original.
 - **`changeStage`** (Obliterated/Obliterated-legacy): recolorea `tvLights`/
   `lightOverlay` entre Normal/Killer/Blue/Red — confirmado que eso es
   literalmente todo lo que hace el evento original (no cambia de escenario).
@@ -211,11 +216,23 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    selector de dificultad dirá "Easy/Normal/Hard" en vez de "Erect/Nightmare".
 6. **Portrait de Story Menu genérico** (`weekCharacters` cae al personaje BF
    por defecto — no hay arte de menú específico de QT/KB/Pico convertido).
-7. **`SetCameraBop` es una aproximación, no una réplica exacta.** El original
-   decae el multiplicador de zoom continuamente cada frame
-   (`cameraBopMultiplier` con `Math.pow(decayRate, dt)`); la versión portada
-   usa un tween de ida y vuelta de duración fija por golpe. Visualmente muy
-   similar, pero no es la misma curva de decaimiento.
+7. **`SetCameraBop` ya usa la curva de decaimiento real** (ver "Estado
+   actual"), con una única diferencia deliberada: el original mantiene el
+   zoom "base" (el que fijan los tweens de `ZoomCamera`) completamente
+   separado del multiplicador de bop, combinándolos recién cada frame
+   (`zoomPlusBop = currentCameraZoom * cameraBopMultiplier`). La versión
+   portada no tiene ese "zoom base" como variable independiente — ambos
+   sistemas escriben directo a `FlxG.camera.zoom` — así que, para no pelear
+   por ese valor, el decaimiento del bop se pausa mientras un `ZoomCamera`
+   tiene un tween activo y retoma cuando termina. Esto SÍ pasa seguido (los
+   charts casi siempre emiten `SetCameraBop` cerca de un `ZoomCamera`, así
+   que hay secciones enteras donde ambos están activos a la vez): en esas
+   ventanas el bop queda congelado en vez de seguir decayendo en paralelo
+   como en el original — visualmente similar (el zoom igual se mueve, solo
+   que sin el pulso superpuesto durante esos tramos) pero no idéntico.
+   Arreglarlo del todo requeriría separar un "zoom base" propio en las 6
+   stages en vez de escribir `FlxG.camera.zoom` directamente desde
+   `zoomCamera()`.
 8. **Cutscene final de Blissful-erect sin subtítulos ni skip.** Se portó toda
    la coreografía de cámara/sonido/animación (ver "Estado actual"), pero se
    omitió el archivo de subtítulos `subtitles/english/cutsceneErect/showoff.srt`
@@ -255,13 +272,14 @@ erect, Blissful pico) ya están portadas casi por completo. Lo que queda:
 
 1. Portrait de Story Menu específico para QT/KB/Pico (en vez de caer al
    genérico de BF).
-2. Curva de decaimiento exacta para `SetCameraBop` (actualmente es un tween
-   de ida y vuelta de duración fija, no la exponencial continua del original).
-3. Subtítulos y mecanismo de skip para las 3 cutscenes (limitaciones 3/8) —
+2. Subtítulos y mecanismo de skip para las 3 cutscenes (limitaciones 3/8) —
    requeriría un sistema de subtítulos propio en HScript ya que Psych no
    trae uno nativo.
-4. Overlay de la pose `introbl` de Blissful-pico más preciso (limitación 10)
+3. Overlay de la pose `introbl` de Blissful-pico más preciso (limitación 10)
    y/o bop de GF sincronizado a los beats de `introSong-pico`.
+4. Separar un "zoom base" propio del bop en las 6 stages para que
+   `SetCameraBop` no tenga que pausarse mientras un `ZoomCamera` está activo
+   (limitación 7 — hoy ambos escriben directo a `FlxG.camera.zoom`).
 5. `cutsceneVideo`/`cutsceneVideoOut`/`fadeStart` de Obliterated (video
    superpuesto en gameplay en vivo) — ver limitación 4 sobre por qué esto es
    una limitación arquitectónica de Psych, no un simple pendiente; requeriría

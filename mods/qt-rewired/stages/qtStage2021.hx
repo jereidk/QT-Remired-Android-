@@ -125,6 +125,15 @@ function setCameraBop(value1:String, value2:String)
 	bopOffset = (p.length > 2 && p[2].length > 0) ? Std.parseFloat(p[2]) : 0;
 }
 
+// SetCameraBop uses FunkinCrew's real per-frame exponential decay
+// (SetCameraBopSongEvent.hx / PlayState.hx:
+// cameraBopMultiplier = lerp(1, cameraBopMultiplier, 0.95^(elapsed*60)))
+// instead of a fixed-duration up/down tween. Paused while an explicit
+// ZoomCamera tween is active so the two don't fight over FlxG.camera.zoom -
+// see PORT_INFO.md.
+var cameraBopMultiplier:Float = 1.0;
+var bopBaseZoom:Float = 1.0;
+
 function onBeatHit()
 {
 	if (bopRate <= 0 || bopIntensity == 1.0) return;
@@ -132,12 +141,24 @@ function onBeatHit()
 	var beat:Int = getVar('curBeat');
 	if (Math.round((beat + bopOffset) % bopRate) != 0) return;
 
-	var bump:Float = (bopIntensity - 1.0) * game.defaultCamZoom;
-	var startZoom:Float = FlxG.camera.zoom;
-	var half:Float = (Conductor.crochet * bopRate) / 2000;
+	if (cameraBopMultiplier == 1.0) bopBaseZoom = FlxG.camera.zoom;
+	cameraBopMultiplier = bopIntensity;
+}
 
-	FlxTween.tween(FlxG.camera, {zoom: startZoom + bump}, half, {
-		ease: FlxEase.quadOut,
-		onComplete: function(_) FlxTween.tween(FlxG.camera, {zoom: startZoom}, half, {ease: FlxEase.quadIn})
-	});
+function decayCameraBop(elapsed:Float)
+{
+	if (cameraBopMultiplier == 1.0) return;
+	if (cameraZoomTween != null && cameraZoomTween.active) return;
+
+	var decayRate:Float = 0.95;
+	var dt:Float = elapsed * 60;
+	cameraBopMultiplier = 1.0 + (cameraBopMultiplier - 1.0) * Math.pow(decayRate, dt);
+	FlxG.camera.zoom = bopBaseZoom * cameraBopMultiplier;
+
+	if (Math.abs(cameraBopMultiplier - 1.0) < 0.0005) cameraBopMultiplier = 1.0;
+}
+
+function onUpdate(elapsed:Float)
+{
+	decayCameraBop(elapsed);
 }
