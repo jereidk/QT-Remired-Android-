@@ -24,8 +24,12 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   zoom y fondos de cada stage. `qtStage` y `qtStageCityErect` tienen cutscene
   de INICIO **y** de FIN de canción; `qtStagePico` solo tiene la de INICIO
   (antes del countdown); `qtStageKiller` tiene una apertura simple (fundido
-  desde negro, sin coreografía); `qtStageObliteratedErect` tiene una apertura
-  bastante más grande sin portar (ver limitación 12); `qtStage2021` no tiene
+  desde negro, sin coreografía) más la cinemática de mitad de canción
+  (`fadeStart`/`cutsceneVideo`/`cutsceneVideoOut`); `qtStageObliteratedErect`
+  tiene su propia apertura (fundido de 12.5s) **y** cinemática de mitad de
+  canción completa — dos videos, fundidos de cámara/HUD, cambio de layout y
+  color grading en toda la canción (ver limitación 12 para el detalle
+  técnico y las partes que NO se pudieron portar); `qtStage2021` no tiene
   ninguna (confirmado, ver limitación 9).
 - `data/{blissful,obliterated,blissful-erect,obliterated-erect,
   obliterated-legacy,blissful-pico,blissful-2021}/*.json` — charts convertidos
@@ -384,19 +388,74 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
     queda mayormente tapada por la pantalla negra durante los pocos segundos
     que dura, y motivaba otro overlay standalone (como el de la limitación
     10) para un beneficio visual marginal.
-12. **Obliterated-erect NO tiene su apertura/cinemática de mitad de canción
-    portada.** Ya no es un problema de factibilidad — el `hxCodec`/`FlxVideo`
-    usado en `cutsceneVideo` de Obliterated base (limitación 4) confirma que
-    reproducir video superpuesto desde HScript funciona — pero esta cinemática
-    es un sistema bastante más grande, sin decidir todavía si vale la pena
-    portarlo entero: DOS videos incrustados (`obliteratedErectMid.mp4`,
-    `obliteratedErectEdit.mp4`, vía `FunkinVideoSprite` en el original), más
-    shaders de color (`AdjustColorShader`/`DropShadowShader` sobre dad), más 4
-    fundidos de cámara con cambio de layout en momentos específicos
-    (`camFade2/3/4Triggered`, `fadeOut1/2Triggered`, `layoutTriggered`, en
-    t≈147.9s/148.3s/152.2s/152.3s/178.5s/179.2s/189.6s) que llevan al
-    personaje a un estado "tsundere" después. Portar solo el video sin los
-    shaders/fundidos de cámara dejaría una apertura visualmente incompleta.
+12. **Obliterated-erect: apertura + cinemática de mitad de canción, portadas
+    (con partes aproximadas/no portadas documentadas abajo).** Ported desde
+    `obliterated-erect.hxc`'s `onCountdownStart`/`onSongStart`/`onStepHit`/
+    `onUpdate` y `QtStageObliteratedErect.hxc`'s `buildStage`/`addCharacter`:
+    - **Apertura**: countdown saltado igual que Obliterated base
+      (`game.skipCountdown`), `game.camGame.fade(BLACK, 12.5, true, null,
+      true)` al iniciar la canción — el mismo método `.fade()` de
+      `FlxCamera` que ya usa `qtStagePico.hx`'s `playIntroCutscene`, así que
+      a diferencia del import de `hxCodec`, esta llamada ya tenía precedente
+      funcionando en este mismo código antes de este cambio.
+    - **Dos videos superpuestos** (`obliteratedErectMid.mp4` en t≈149.7s-
+      153.8s, `obliteratedErectEdit.mp4` en t≈153.8s hasta que termina), vía
+      `hxCodec`/`FlxVideo` — misma técnica y mismo riesgo de import aceptado
+      que `cutsceneVideo` de Obliterated base (limitación 4).
+    - **4 fundidos de cámara** (`camFade2/3/4`, ida y vuelta a negro) vía
+      `game.camGame.fade()` en los timestamps exactos del original
+      (t≈147.9s/178.5s/189.6s) — inyectados como eventos sintéticos en
+      `events.json` (el original los dispara por tiempo hardcodeado en el
+      script, no por eventos reales del chart).
+    - **Fundidos de HUD** (`hudFadeOut1/In/Out2`) y **cambio de layout**
+      (`layoutChange`: centra el strumline del jugador, oculta el del
+      oponente para el resto de la canción) — mismos timestamps del
+      original, misma técnica de `fadeHud`/grupo `.visible` ya usada en
+      `qtStageKiller.hx`.
+    - **Pose final "tsundere" de dad**: el `.hxc` original la dispara desde
+      el `onEndReached` del segundo video, pero el chart original **también**
+      trae un evento nativo `PlayAnimation` (target: dad, anim: tsundere) en
+      t≈179.05s — casi el mismo momento, pero un timestamp fijo del chart en
+      vez de depender de que `hxCodec` reporte el fin del video exactamente
+      cuando se esperaba. Se usó ese timestamp del chart como disparador
+      principal (más confiable), dejando el `onEndReached` de `FlxVideo`
+      como respaldo (la función que muestra la pose es idempotente, llamarla
+      dos veces no cambia nada). Como los personajes de Psych no pueden
+      cambiar de animación a mitad de canción hacia un atlas completamente
+      distinto, se implementó como un `FlxAnimate` standalone superpuesto
+      sobre dad (mismo patrón que `qtStagePico.hx`'s `picoOverlay`), cargado
+      del atlas real del paquete (`characters/kb_export/kb-erect-end`,
+      símbolo `exportanim`). Queda puesta para el resto de la canción, igual
+      que en el original.
+    - **Color grading de toda la canción** sobre bf/dad/gf: el original usa
+      un shader propio (`AdjustColorShader`, hue/saturación/contraste/brillo)
+      que Psych no tiene, pero Psych SÍ trae su propio shader de
+      hue/saturación/brillo (`shaders.ColorSwap`, `source/shaders/
+      ColorSwap.hx`) — una clase real y compilada en el motor, así que
+      importarla no tiene el riesgo de "podría no resolver en el build real"
+      que sí tiene `hxCodec`. Lo que se pierde: `ColorSwap` no tiene control
+      de contraste (el `contrast: 10` del original se descarta), y no hay
+      ningún equivalente al `DropShadowShader` (brillo de contorno) que el
+      original aplica sobre dad/gf — Psych no trae ningún shader de ese
+      tipo. La conversión de unidades entre el original (hue en grados
+      -180..180, saturación/brillo en porcentaje -100..100, convención
+      típica de un ajuste HSB estilo Photoshop) y `ColorSwap` (hue/
+      saturación sumados directo al 0..1 normalizado, brillo como
+      multiplicador `×(1+valor)`) es una suposición razonable pero no
+      verificada visualmente en este entorno — puede necesitar ajuste.
+    - **NO portado**: la pose congelada "intro-erect" de dad (frame 0
+      sostenido desde el inicio de la canción hasta el step 34, luego
+      resume) — pausar/resumir un `FlxAnimate` a mitad de reproducción vía
+      HScript no está verificado en este entorno (misma razón ya aplicada al
+      `erectIntro1` de Blissful-erect — limitación 8), y la pose queda casi
+      totalmente tapada por el fundido de 12.5s de todas formas, así que dad
+      simplemente juega sus animaciones normales esos primeros segundos. La
+      pose "tired" de boyfriend (evento nativo `PlayAnimation` del chart en
+      t≈178.3s) tampoco se portó — el atlas de `bf-qt` no tiene esa
+      animación. La suspensión del ghost-tap-miss durante los videos
+      (`inGhost` en el original) tampoco — mismo límite ya documentado en
+      la limitación 4 (`noteMissPress` de Psych corre después de aplicar la
+      penalización).
 13. **HUD estilo "Kade Engine 2021" de Blissful-2021, portado sin los
     toggles avanzados ni el ranking con colores.** Después de leer el código
     fuente real de Psych (`PlayState.popUpScore`/`goodNoteHit`) confirmé que
@@ -442,9 +501,9 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
 
 ## Próximos pasos sugeridos (en orden)
 
-Todas las cutscenes/aperturas que tienen contenido real en el original
-(Blissful base ×2, Blissful erect ×2, Blissful pico, Obliterated
-base/legacy) ya están portadas. Lo que queda:
+Todas las cutscenes/aperturas/cinemáticas que tienen contenido real en el
+original (Blissful base ×2, Blissful erect ×2, Blissful pico, Obliterated
+base/legacy, Obliterated-erect) ya están portadas. Lo que queda:
 
 1. Verificar/ajustar visualmente el `scale`/`position` del portrait de QT en
    el Story Menu (limitación 6 — estimado por proporción, sin poder
@@ -462,13 +521,13 @@ base/legacy) ya están portadas. Lo que queda:
    portado** (ver "Estado actual" y limitación 4), usando `hxCodec`/
    `FlxVideo` directo desde HScript con el riesgo de import aceptado
    explícitamente por decisión del usuario.
-5. La apertura/cinemática de mitad de canción de Obliterated-erect (dos
-   videos incrustados + shaders de color + 4 fundidos de cámara con cambio
-   de layout — ver limitación 12). Ya no bloqueada por dudas de
-   factibilidad (el punto 4 confirmó que `hxCodec`/`FlxVideo` funciona desde
-   HScript) — lo que falta acá es simplemente el volumen de trabajo
-   (2 videos + shaders + 4 fundidos con cambio de layout), no un límite del
-   engine.
+5. Apertura + cinemática de mitad de canción de Obliterated-erect — **ya
+   portada** (ver "Estado actual" y limitación 12): dos videos, 4 fundidos
+   de cámara, fundidos de HUD, cambio de layout, pose final de dad y color
+   grading en toda la canción. Quedan sin portar, documentados en la misma
+   limitación: la pose congelada `intro-erect`, la pose `tired` de BF, el
+   contraste y el brillo de contorno (`DropShadowShader`) del color grading,
+   y la suspensión del ghost-tap-miss durante los videos.
 6. La pose congelada `intro` de BF en la apertura de Obliterated base/legacy
    (limitación 11) y la pose `intro-erect` de KB en Obliterated-erect (atlas
    separado `kb_export/kb_erect_intro`, `animType: "symbol"`) — ambas

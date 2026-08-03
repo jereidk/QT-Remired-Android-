@@ -1,4 +1,21 @@
 import openfl.display.BlendMode;
+import hxcodec.flixel.FlxVideo;
+import shaders.ColorSwap;
+
+// --- Mid-song cinematic (two videos + camera/HUD fades + layout change),
+// ported from obliterated-erect.hxc's onSongStart/onStepHit/onUpdate. Uses
+// the same hxCodec/FlxVideo approach already shipped for Obliterated
+// base's cutsceneVideo (see qtStageKiller.hx/PORT_INFO.md) plus
+// game.camGame.fade(), which this mod already uses elsewhere (see
+// qtStagePico.hx's playIntroCutscene) - so unlike the video import, the
+// camera-fade calls here have an already-shipped precedent in this same
+// codebase, not just an assumption from the original source.
+var huzzVideo:FlxVideo;
+var editVideo:FlxVideo;
+var tsundereOverlay:FlxAnimate;
+var strumOriginalX:Array<Float> = [];
+var strumPositionsCaptured:Bool = false;
+var colorGrade:ColorSwap;
 
 var sky:FlxSprite;
 var bgBuildings2:FlxSprite;
@@ -160,6 +177,119 @@ function onCreatePost()
 		sawSprite.y = game.dad.getGraphicMidpoint().y - 275;
 	}
 	game.add(sawSprite);
+
+	// Color grading for the whole song, ported from QtStageObliteratedErect.hxc's
+	// buildStage()/addCharacter() (updateColorShader(-30, -65, 10, -60) applied
+	// to bf/dad/gf via a shared AdjustColorShader). Psych doesn't have that
+	// exact shader class, but does ship its own hue/saturation/brightness
+	// shader (shaders.ColorSwap, source/shaders/ColorSwap.hx) - real, compiled
+	// into the engine, so importing it here carries none of the "might not
+	// resolve at build time" risk that hxCodec below does. What's lost:
+	// ColorSwap has no contrast control (the original's contrast=10 is
+	// dropped), and there's no equivalent at all for the original's
+	// DropShadowShader rim-light glow on dad/gf (no such shader ships with
+	// Psych) - both are approximations, not exact matches, and can't be
+	// visually verified in this environment. Unit conversion assumption:
+	// the original's hue/saturation/brightness read like a standard
+	// Photoshop-style HSB adjustment (hue in degrees -180..180, saturation/
+	// brightness as percent -100..100), while ColorSwap adds hue/saturation
+	// directly to the normalized (0..1) HSV components and multiplies
+	// brightness by (1 + value) - so the constants are converted accordingly
+	// (hue/360, saturation/100, brightness/100) rather than used raw.
+	colorGrade = new ColorSwap();
+	colorGrade.hue = -30 / 360;
+	colorGrade.saturation = -65 / 100;
+	colorGrade.brightness = -60 / 100;
+	if (game.boyfriend != null) game.boyfriend.shader = colorGrade.shader;
+	if (game.dad != null) game.dad.shader = colorGrade.shader;
+	if (game.gf != null) game.gf.shader = colorGrade.shader;
+
+	// Mid-song cinematic: two videos overlaid on live gameplay, ported from
+	// obliterated-erect.hxc's onUpdate() video1Triggered/video2Triggered
+	// blocks - same hxCodec/FlxVideo approach and the same accepted import
+	// risk already shipped for Obliterated base's cutsceneVideo (see
+	// qtStageKiller.hx/PORT_INFO.md).
+	huzzVideo = new FlxVideo();
+	huzzVideo.autoResize = false;
+	huzzVideo.visible = false;
+	huzzVideo.x = 0;
+	huzzVideo.y = 0;
+	huzzVideo.width = FlxG.width;
+	huzzVideo.height = FlxG.height;
+
+	editVideo = new FlxVideo();
+	editVideo.autoResize = false;
+	editVideo.visible = false;
+	editVideo.x = 0;
+	editVideo.y = 0;
+	editVideo.width = FlxG.width;
+	editVideo.height = FlxG.height;
+	editVideo.onEndReached.add(function()
+	{
+		editVideo.stop();
+		editVideo.visible = false;
+		// Fallback in case the chart's own dadTsundere event (below) somehow
+		// doesn't line up with hxCodec's actual video duration - idempotent,
+		// safe to call twice.
+		showTsundereOverlay();
+	});
+
+	// dad's "tsundere" ending pose (kb.json's kb-erect-end atlas), shown once
+	// editVideo finishes - see showTsundereOverlay() below. The original's
+	// earlier "intro-erect" frozen pose (frame 0 held from song start,
+	// resumed at step 34) is NOT ported: freezing/resuming an FlxAnimate
+	// mid-playback via HScript is unverified in this environment (same
+	// reasoning already applied to Blissful-erect's erectIntro1 pose - see
+	// PORT_INFO.md), and the pose is almost entirely hidden by the 12.5s
+	// camera fade-in anyway, so dad just plays his normal animations for
+	// those first few seconds instead.
+	tsundereOverlay = new FlxAnimate(0, 0);
+	tsundereOverlay.showPivot = false;
+	Paths.loadAnimateAtlas(tsundereOverlay, 'characters/kb_export/kb-erect-end');
+	tsundereOverlay.anim.addBySymbol('tsundere', 'exportanim', 24, false);
+	tsundereOverlay.visible = false;
+	game.add(tsundereOverlay);
+
+	// HUD (health bar/score/icons/both strumlines) starts fully hidden, same
+	// as the original's onSongLoaded doHudFade(0, 0, true) - restored by the
+	// "hudFadeIn" event partway through the song (see onEvent below).
+	fadeHud(0, 0, true);
+}
+
+// Skips the visual countdown entirely (same public-API substitute for the
+// original's private startSong()/Countdown.stopCountdown() calls already
+// used in qtStageKiller.hx's onStartCountdown - see PORT_INFO.md), then the
+// long fade-in from black starts exactly when the song itself starts,
+// ported from onSongStart's camGame.fade(BLACK, 12.5, true, null, true).
+function onStartCountdown():Dynamic
+{
+	game.skipCountdown = true;
+	return null;
+}
+
+function onSongStart()
+{
+	game.camGame.fade(FlxColor.BLACK, 12.5, true, null, true);
+}
+
+function onSongRetry()
+{
+	FlxTween.cancelTweensOf(game.healthBar);
+	FlxTween.cancelTweensOf(game.scoreTxt);
+	FlxTween.cancelTweensOf(game.iconP1);
+	FlxTween.cancelTweensOf(game.iconP2);
+
+	huzzVideo.stop();
+	huzzVideo.visible = false;
+	editVideo.stop();
+	editVideo.visible = false;
+	tsundereOverlay.visible = false;
+	if (game.dad != null) game.dad.visible = true;
+
+	restorePlayerStrumPositions();
+	game.opponentStrums.visible = true;
+
+	fadeHud(0, 0, true);
 }
 
 function onEvent(eventName:String, value1:String, value2:String, strumTime:Float)
@@ -174,6 +304,141 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 	else if (eventName == 'FocusCamera') focusCamera(value1, value2);
 	else if (eventName == 'ZoomCamera') zoomCamera(value1, value2);
 	else if (eventName == 'SetCameraBop') setCameraBop(value1, value2);
+	// --- Mid-song cinematic events, synthetic (injected into events.json at
+	// the original's hardcoded timestamps - see PORT_INFO.md), matching
+	// obliterated-erect.hxc's onUpdate() one-shot triggers 1:1. ---
+	else if (eventName == 'camFade2') game.camGame.fade(FlxColor.BLACK, 1.773, false, null, true);
+	else if (eventName == 'hudFadeOut1') fadeHud(0, 1.8, true);
+	else if (eventName == 'video1Start')
+	{
+		huzzVideo.visible = true;
+		huzzVideo.play(Paths.video('obliteratedErectMid'));
+	}
+	else if (eventName == 'layoutChange')
+	{
+		centerPlayerStrums();
+		game.opponentStrums.visible = false;
+	}
+	else if (eventName == 'hudFadeIn') fadeHud(1, 2.9, false);
+	else if (eventName == 'video2Start')
+	{
+		huzzVideo.stop();
+		huzzVideo.visible = false;
+		editVideo.visible = true;
+		editVideo.play(Paths.video('obliteratedErectEdit'));
+	}
+	else if (eventName == 'camFade3') game.camGame.fade(FlxColor.BLACK, 9.5, true, null, true);
+	// The original chart itself already has a native "PlayAnimation" event
+	// for this (target: dad, anim: tsundere, t=179052.63) - very close to
+	// but not literally the same trigger as editVideo's own onEndReached
+	// (which also calls showTsundereOverlay() as a fallback below). Using
+	// the chart's own fixed timestamp is more reliable than depending on
+	// hxCodec's onEndReached firing at exactly the right moment - see
+	// PORT_INFO.md. The chart's matching "PlayAnimation" for boyfriend
+	// ('tired', t=178302.63) is NOT ported - bf-qt's atlas has no such
+	// animation.
+	else if (eventName == 'dadTsundere') showTsundereOverlay();
+	else if (eventName == 'hudFadeOut2') fadeHud(0, 5.0, false);
+	else if (eventName == 'camFade4') game.camGame.fade(FlxColor.BLACK, 4.65, false, null, true);
+}
+
+// HUD fade helper covering health bar/score/icons/player strumline, and
+// optionally the opponent strumline too - ported from doHudFade(). Toggles
+// each strumline group's own .visible immediately (fade-in) or once the
+// tween finishes (fade-out) since FlxTypedGroup has no .alpha to tween
+// directly (see PORT_INFO.md) - members are tweened individually, and
+// safely resolve to zero iterations before generateStaticArrows() has run
+// (onCreatePost's initial fadeHud(0, 0, true) call), since the groups
+// themselves are already toggled visible=false at that point regardless.
+function fadeHud(target:Float, duration:Float, includeOpponent:Bool)
+{
+	var targets:Array<Dynamic> = [game.healthBar, game.scoreTxt, game.iconP1, game.iconP2];
+	for (t in game.playerStrums.members) targets.push(t);
+	if (includeOpponent) for (t in game.opponentStrums.members) targets.push(t);
+
+	if (duration <= 0)
+	{
+		for (t in targets) if (t != null) t.alpha = target;
+		game.playerStrums.visible = (target > 0);
+		if (includeOpponent) game.opponentStrums.visible = (target > 0);
+		return;
+	}
+
+	if (target > 0)
+	{
+		game.playerStrums.visible = true;
+		if (includeOpponent) game.opponentStrums.visible = true;
+	}
+
+	for (t in targets)
+	{
+		if (t == null) continue;
+		FlxTween.tween(t, {alpha: target}, duration, {ease: FlxEase.quadInOut});
+	}
+
+	if (target <= 0)
+	{
+		new FlxTimer().start(duration, function(_)
+		{
+			game.playerStrums.visible = false;
+			if (includeOpponent) game.opponentStrums.visible = false;
+		});
+	}
+}
+
+// Shifts the player strumline (all 4 arrows) so it's horizontally centered
+// on screen, ported from centerPlayerStrumline() - the original also skips
+// this when using an alternate ("Arrows") control scheme, which Psych has
+// no equivalent toggle for, so it's always applied here.
+function centerPlayerStrums()
+{
+	captureStrumPositions();
+	if (game.playerStrums.members.length == 0) return;
+
+	var minX:Float = 999999;
+	var maxX:Float = -999999;
+	for (strum in game.playerStrums.members)
+	{
+		if (strum.x < minX) minX = strum.x;
+		if (strum.x + strum.width > maxX) maxX = strum.x + strum.width;
+	}
+
+	var delta:Float = (FlxG.width / 2) - ((minX + maxX) / 2);
+	for (strum in game.playerStrums.members) strum.x += delta;
+}
+
+function captureStrumPositions()
+{
+	if (strumPositionsCaptured) return;
+	strumPositionsCaptured = true;
+	for (strum in game.playerStrums.members) strumOriginalX.push(strum.x);
+}
+
+function restorePlayerStrumPositions()
+{
+	if (!strumPositionsCaptured) return;
+	var i:Int = 0;
+	for (strum in game.playerStrums.members)
+	{
+		if (i < strumOriginalX.length) strum.x = strumOriginalX[i];
+		i++;
+	}
+}
+
+// dad's ending pose after the editVideo cutscene, ported from editVideo's
+// onEndReached (dad.playAnimation('tsundere', true, true)) - shown as a
+// standalone FlxAnimate overlay instead of a real character animation
+// (same approach as qtStagePico.hx's picoOverlay/qtStageCityErect.hx's
+// erectIntro poses - see PORT_INFO.md), since Psych characters can't swap
+// mid-song to an animation living in a different, separate atlas file. Left
+// up for the rest of the song - the original never reverts it either.
+function showTsundereOverlay()
+{
+	if (game.dad == null) return;
+	game.dad.visible = false;
+	tsundereOverlay.setPosition(game.dad.x - 124, game.dad.y - 182);
+	tsundereOverlay.visible = true;
+	tsundereOverlay.anim.play('tsundere', true);
 }
 
 // Sequence timeline (beats, relative to the event's strumTime):
