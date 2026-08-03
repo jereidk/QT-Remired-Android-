@@ -219,6 +219,17 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
   watermark `<nombre de canción> <dificultad> - KE 1.4.2`. Ver limitación
   13 sobre qué partes del original no se portaron (toggles avanzados,
   ranking con colores, y el simulador de lag a propósito).
+- **Subtítulos de las 4 cutscenes** (Blissful base/pico intro, Blissful
+  erect intro/final) — los 5 archivos `.srt` del original (`hi-cutie` ×2,
+  `alright-cutie`, `well-see`, `showoff`) solo tenían 1-2 líneas cortas cada
+  uno, así que en vez de parsear `.srt` en runtime se hardcodearon como
+  pares texto+duración (ya convertidos a tiempo relativo a cada cutscene) en
+  una función `showSubtitle()` compartida por archivo de stage. Activados/
+  desactivados con la opción de mod "Show Subtitles" (`data/settings.json`,
+  `qtSubtitles`, activada por defecto) ya que Psych no tiene una preferencia
+  nativa de subtítulos como el `Preferences.subtitles` del original. Solo en
+  inglés — los subtítulos en español del original no se incluyeron (ver
+  limitación 8).
 - **Corregido un bug latente de BOM UTF-8** en varios `spritemap1.json` (QT,
   sierra, GF-QT, BF-QT, BF-QT-erect, PICO/all) y en dos atlas Sparrow más
   (`storymenu/props/QT.xml`, `2021/qt-kb.xml`) que venían con marca de
@@ -248,14 +259,14 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    específicamente). El note kind funciona (aplica el sufijo, no rompe nada),
    pero cosméticamente puede no notarse el cambio en BF. **QT sí tiene su
    animación dedicada** ahora (ver "Notas de implementación" abajo).
-3. **Cutscene final de Blissful (base) sin subtítulos ni skip.** A diferencia
-   de lo que se pensaba antes (un supuesto sprite de "bus"), el original
+3. **Cutscenes de Blissful (base) sin el prompt de skip.** A diferencia de
+   lo que se pensaba antes (un supuesto sprite de "bus"), el original
    (`blissful.hxc` + `QtTransformSongOutro.hxc`) resultó ser más simple: solo
    QT reemplazada por el sprite `qt transform` + coreografía de cámara +
-   fundidos de color. Ya está portado casi por completo (ver "Estado
-   actual"); lo único que falta, igual que en la cutscene de Blissful-erect,
-   son los subtítulos (Psych no tiene sistema nativo) y el prompt de
-   "presiona para saltar".
+   fundidos de color en la cutscene final (que nunca tuvo subtítulos en el
+   original). La de intro sí los tiene (`hi-cutie.srt`) y ya está portada
+   (ver "Estado actual" y `showSubtitle()` en `qtStage.hx`). Lo único que
+   falta en ambas es el prompt de "mantén presionado para saltar".
 4. **`changeStage` solo recolorea, no cambia de escenario real.** Se portó
    correctamente para Obliterated/Obliterated-legacy (`tvLights`/
    `lightOverlay` cambian entre Normal/Killer/Blue/Red, que es literalmente
@@ -313,15 +324,14 @@ Lo que SÍ funciona (carpeta de mod, sin tocar `source/`):
    Arreglarlo del todo requeriría separar un "zoom base" propio en las 6
    stages en vez de escribir `FlxG.camera.zoom` directamente desde
    `zoomCamera()`.
-8. **Las dos cutscenes de Blissful-erect (intro y final) sin subtítulos ni
-   skip.** Se portó toda la coreografía de cámara/sonido/animación de ambas
-   (ver "Estado actual"), pero se omitieron los 3 archivos de subtítulos
-   (`alright-cutie.srt`/`well-see.srt` de la de intro, `showoff.srt` de la
-   final — Psych no tiene un sistema de subtítulos nativo) y el mecanismo de
-   "mantén presionado para saltar" (`skipCutscene()` del original) — ambas
-   cutscenes siempre se reproducen completas (~9.8s la de intro, ~14s la
-   final). Solo se copió el audio en inglés (el original también trae
-   variantes en español para varias de estas líneas, no incluidas). Además,
+8. **Las dos cutscenes de Blissful-erect (intro y final) sin skip.** Se
+   portó toda la coreografía de cámara/sonido/animación/subtítulos de ambas
+   (ver "Estado actual"), pero se omitió el mecanismo de "mantén presionado
+   para saltar" (`skipCutscene()` del original) — ambas cutscenes siempre se
+   reproducen completas (~9.8s la de intro, ~14s la final). Solo se copió el
+   audio en inglés (el original también trae variantes en español para
+   varias de estas líneas, no incluidas — los subtítulos en español
+   tampoco). Además,
    la pose `erectIntro1` de dad no se congela en el frame 0 como en el
    original (que la pausa 0.9s antes de reproducirla completa) — acá
    simplemente se reproduce dos veces seguidas, un detalle cosmético menor
@@ -404,9 +414,9 @@ base/legacy) ya están portadas. Lo que queda:
    compilar/ejecutar el juego en este entorno). KB y Pico no tienen arte de
    story menu en el paquete original, así que no hay nada que portar para
    ellos ahí.
-2. Subtítulos y mecanismo de skip para las 4 cutscenes (limitaciones 3/8) —
-   requeriría un sistema de subtítulos propio en HScript ya que Psych no
-   trae uno nativo.
+2. Mecanismo de "mantén presionado para saltar" para las 4 cutscenes
+   (limitaciones 3/8) — los subtítulos ya están portados (ver "Estado
+   actual").
 3. Overlay de la pose `introbl` de Blissful-pico más preciso (limitación 10)
    y/o bop de GF sincronizado a los beats de `introSong-pico`.
 4. Separar un "zoom base" propio del bop en las 6 stages para que

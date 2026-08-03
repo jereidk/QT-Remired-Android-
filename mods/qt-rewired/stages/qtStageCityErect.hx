@@ -152,8 +152,8 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 
 // --- Blissful Erect ending cutscene, ported from blissful-erect.hxc's
 // onSongEnd(). Camera choreography + sound cues + the dedicated dad/bf poses
-// are kept; the subtitle track and the press-key-to-skip prompt are dropped
-// since Psych has no built-in subtitle system (see PORT_INFO.md). Dad's
+// are kept, along with the subtitle line (showSubtitle() below); the
+// press-key-to-skip prompt is still dropped (see PORT_INFO.md). Dad's
 // "erectEnding" pose and bf's "shoulderSwish" both live in the qt-erect /
 // bf-qt-erect Animate atlases as frame labels (no symbol dictionary entry),
 // so they're registered with addByFrameLabel the same way qtStagePico's
@@ -189,6 +189,7 @@ function playEndingCutscene()
 
 	FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/qt_erect_ending'));
 	outroMusic = FlxG.sound.play(Paths.music('gameplay/introSong/outroSong-erect'), 0.2);
+	new FlxTimer().start(3.72, function(_) showSubtitle("You're kind of a show-off, huh?", 2.52));
 
 	tweenCamPos(510, 923, 2.7, FlxEase.quartInOut);
 	tweenCamZoomAbs(1.20, 2.7, FlxEase.quartInOut);
@@ -256,12 +257,46 @@ function tweenCamZoomAbs(mult:Float, duration:Float, ease:Float->Float)
 function dadFocusX():Float return game.dad.getMidpoint().x + 150 + game.dad.cameraPosition[0] + game.opponentCameraOffset[0];
 function dadFocusY():Float return game.dad.getMidpoint().y - 100 + game.dad.cameraPosition[1] + game.opponentCameraOffset[1];
 
+// Subtitles shared by both cutscenes in this file (see PORT_INFO.md) - the
+// original's 3 .srt files here only have 1-2 short entries each, hardcoded
+// as plain text+duration instead of parsing .srt at runtime. Toggled by the
+// "Show Subtitles" mod setting (data/settings.json), since Psych has no
+// built-in subtitles preference to check like the original's
+// Preferences.subtitles.
+var subtitleText:FlxText;
+
+function subtitlesEnabled():Bool
+{
+	var v:Dynamic = getModSetting('qtSubtitles');
+	return (v == null) ? true : v;
+}
+
+function showSubtitle(text:String, duration:Float)
+{
+	if (!subtitlesEnabled()) return;
+
+	if (subtitleText == null)
+	{
+		subtitleText = new FlxText(0, FlxG.height * 0.85, FlxG.width, '', 28);
+		subtitleText.setFormat(Paths.font('vcr.ttf'), 28, 0xFFFFFFFF, 'center', FlxTextBorderStyle.OUTLINE, 0xFF000000);
+		subtitleText.scrollFactor.set();
+		subtitleText.cameras = [FlxG.camera];
+		subtitleText.alpha = 0;
+		game.add(subtitleText);
+	}
+
+	subtitleText.text = text;
+	subtitleText.alpha = 1;
+	new FlxTimer().start(duration, function(_) { if (subtitleText != null) subtitleText.alpha = 0; });
+}
+
 // --- Blissful Erect intro cutscene, ported from blissful-erect.hxc's
 // onCountdownStart(). Dad needs the qt-erect atlas again for its
 // "erectIntro1"/"erectIntro2" poses (frame labels, addByFrameLabel like the
 // ending cutscene) - swapped back to "qt" at the end since real gameplay
-// needs the normal singing character. Subtitles and the skip-key prompt are
-// dropped, same as the other cutscenes - see PORT_INFO.md. The original's
+// needs the normal singing character. Subtitle lines are kept (same
+// showSubtitle() as the ending cutscene above); the skip-key prompt is
+// still dropped, same as the other cutscenes - see PORT_INFO.md. The original's
 // danceQT/QTErectDanceSprite overlay sprite (used during onCreate for the
 // caramelldansen section) isn't ported - this mod already handles that
 // section via the Change Character swap instead, a different but working
@@ -317,7 +352,10 @@ function playIntroCutscene()
 	{
 		dad.playAnim('erectIntro1', true, false);
 		FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/qt_erect_intro_1'));
+		showSubtitle('Alright, cutie...', 1.676);
 	});
+
+	new FlxTimer().start(0.90 + 1.70, function(_) showSubtitle('Think you can keep up?', 1.45));
 
 	new FlxTimer().start(2.59, function(_)
 	{
@@ -353,7 +391,11 @@ function playIntroCutscene()
 		tweenCamZoomAbs(1.16, 2.5, FlxEase.quartInOut);
 	});
 
-	new FlxTimer().start(7.1, function(_) FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/qt_erect_intro_2')));
+	new FlxTimer().start(7.1, function(_)
+	{
+		FlxG.sound.play(Paths.sound('gameplay/cutsceneSfx/bf/qt_erect_intro_2'));
+		showSubtitle("Pfft, we'll see about that!", 2.0);
+	});
 
 	new FlxTimer().start(8.4, function(_)
 	{

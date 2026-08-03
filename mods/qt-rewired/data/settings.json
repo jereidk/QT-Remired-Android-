@@ -14,5 +14,12 @@
 		type: 'string',
 		options: ['Damage', 'Instakill', 'Disabled'],
 		value: 'Damage'
+	},
+	{
+		name: 'Show Subtitles',
+		description: 'Show subtitles during cutscenes.',
+		save: 'qtSubtitles',
+		type: 'bool',
+		value: true
 	}
 ]

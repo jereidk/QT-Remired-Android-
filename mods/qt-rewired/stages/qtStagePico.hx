@@ -164,10 +164,11 @@ function onEvent(eventName:String, value1:String, value2:String, strumTime:Float
 // onStartCountdown/Function_Stop hook (same interception pattern the
 // onEndSong cutscenes use elsewhere). Camera choreography, dad's
 // "still"/"intro" frame-label poses (already on the qt atlas), a standalone
-// overlay for bf's "introbl" pose, and the hi_cutie/picoWave/introSong-pico
-// sound cues are kept. Subtitles, the skip-key prompt, the GF beat-synced
-// head bop and the 1%-chance easter egg branch (which even opens a YouTube
-// URL in the original) are all dropped - see PORT_INFO.md.
+// overlay for bf's "introbl" pose, the hi_cutie/picoWave/introSong-pico
+// sound cues, and the hi-cutie subtitle (showSubtitle() below) are kept.
+// The skip-key prompt, the GF beat-synced head bop and the 1%-chance
+// easter egg branch (which even opens a YouTube URL in the original) are
+// all dropped - see PORT_INFO.md.
 var hasPlayedIntroCutscene:Bool = false;
 var picoOverlay:FlxAnimate;
 
@@ -223,7 +224,11 @@ function playIntroCutscene()
 
 	new FlxTimer().start(0.5, function(_) game.dad.playAnim('intro', true, false));
 
-	new FlxTimer().start(0.98, function(_) FlxG.sound.play(Paths.sound('gameplay/countdown/hi_cutie'), 1));
+	new FlxTimer().start(0.98, function(_)
+	{
+		FlxG.sound.play(Paths.sound('gameplay/countdown/hi_cutie'), 1);
+		showSubtitle('Hi Cutie!', 3.963);
+	});
 
 	new FlxTimer().start(3.5, function(_)
 	{
@@ -263,6 +268,39 @@ function tweenCamZoomAbs(mult:Float, duration:Float, ease:Float->Float)
 {
 	if (cameraZoomTween != null) cameraZoomTween.cancel();
 	cameraZoomTween = FlxTween.tween(FlxG.camera, {zoom: game.defaultCamZoom * mult}, duration, {ease: ease});
+}
+
+// Subtitle for the cutscene above (see PORT_INFO.md) - the original's
+// hi-cutie.srt only has one short entry, hardcoded here as plain
+// text+duration instead of parsing .srt at runtime. Toggled by the
+// "Show Subtitles" mod setting (data/settings.json), since Psych has no
+// built-in subtitles preference to check like the original's
+// Preferences.subtitles.
+var subtitleText:FlxText;
+
+function subtitlesEnabled():Bool
+{
+	var v:Dynamic = getModSetting('qtSubtitles');
+	return (v == null) ? true : v;
+}
+
+function showSubtitle(text:String, duration:Float)
+{
+	if (!subtitlesEnabled()) return;
+
+	if (subtitleText == null)
+	{
+		subtitleText = new FlxText(0, FlxG.height * 0.85, FlxG.width, '', 28);
+		subtitleText.setFormat(Paths.font('vcr.ttf'), 28, 0xFFFFFFFF, 'center', FlxTextBorderStyle.OUTLINE, 0xFF000000);
+		subtitleText.scrollFactor.set();
+		subtitleText.cameras = [FlxG.camera];
+		subtitleText.alpha = 0;
+		game.add(subtitleText);
+	}
+
+	subtitleText.text = text;
+	subtitleText.alpha = 1;
+	new FlxTimer().start(duration, function(_) { if (subtitleText != null) subtitleText.alpha = 0; });
 }
 
 // --- Camera focus/zoom events, ported with real tweening (Psych's native

@@ -176,9 +176,11 @@ function tweenCamZoomAbs(mult:Float, duration:Float, ease:Float->Float)
 // "still"-then-"intro" frame-label pose on the plain "qt" atlas (no swap
 // needed - unlike Blissful-erect, base Blissful's dad never leaves "qt"),
 // same onStartCountdown/Function_Stop interception as the other intro
-// cutscenes. Subtitles/skip-key dropped, same as the rest.
+// cutscenes. Skip-key still dropped (see PORT_INFO.md); the subtitle line
+// itself is ported (see showSubtitle() below).
 var hasPlayedIntroCutscene:Bool = false;
 var introMusic:Dynamic;
+var subtitleText:FlxText;
 
 function onStartCountdown():Dynamic
 {
@@ -215,7 +217,11 @@ function playIntroCutsceneCountdown()
 
 	new FlxTimer().start(0.5, function(_) game.dad.playAnim('intro', true, false));
 
-	new FlxTimer().start(1.09, function(_) FlxG.sound.play(Paths.sound('gameplay/countdown/hi_cutie'), 1));
+	new FlxTimer().start(1.09, function(_)
+	{
+		FlxG.sound.play(Paths.sound('gameplay/countdown/hi_cutie'), 1);
+		showSubtitle('Hi Cutie!', 3.963);
+	});
 
 	new FlxTimer().start(4, function(_)
 	{
@@ -229,6 +235,37 @@ function playIntroCutsceneCountdown()
 		if (introMusic != null) introMusic.stop();
 		game.startCountdown();
 	});
+}
+
+// Subtitles for the cutscenes above (see PORT_INFO.md) - the original reads
+// timed .srt files via Psych's ClientPrefs.subtitles preference; since each
+// one only has 1-2 short entries, they're hardcoded here as plain
+// text+duration pairs (converted from the .srt's own timestamps, offset by
+// when the matching voice line starts within the cutscene) rather than
+// parsing .srt at runtime.
+function subtitlesEnabled():Bool
+{
+	var v:Dynamic = getModSetting('qtSubtitles');
+	return (v == null) ? true : v;
+}
+
+function showSubtitle(text:String, duration:Float)
+{
+	if (!subtitlesEnabled()) return;
+
+	if (subtitleText == null)
+	{
+		subtitleText = new FlxText(0, FlxG.height * 0.85, FlxG.width, '', 28);
+		subtitleText.setFormat(Paths.font('vcr.ttf'), 28, 0xFFFFFFFF, 'center', FlxTextBorderStyle.OUTLINE, 0xFF000000);
+		subtitleText.scrollFactor.set();
+		subtitleText.cameras = [FlxG.camera];
+		subtitleText.alpha = 0;
+		game.add(subtitleText);
+	}
+
+	subtitleText.text = text;
+	subtitleText.alpha = 1;
+	new FlxTimer().start(duration, function(_) { if (subtitleText != null) subtitleText.alpha = 0; });
 }
 
 function onEvent(eventName:String, value1:String, value2:String, strumTime:Float)
