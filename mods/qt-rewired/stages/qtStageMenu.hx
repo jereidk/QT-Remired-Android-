@@ -61,6 +61,44 @@ var diffText:FlxText;
 var songIndex:Int = 0;
 var diffIndex:Int = 1;
 
+// Sticker pack gallery - the original's collectible sticker packs
+// (data/stickerpacks/*.json) have no Psych equivalent system, but the
+// actual sticker images were sitting in the source package unused (see
+// PORT_INFO.md limitation 15's original writeup) - now that this menu owns
+// its own screen, showing them as a simple browsable gallery is genuinely
+// portable, unlike a real in-game collectible system would be.
+var stickerEntries:Array<Dynamic> = [
+	{path: 'stickers/qtStickers/qtSticker1', pack: 'Blissful'},
+	{path: 'stickers/qtStickers/qtSticker2', pack: 'Blissful'},
+	{path: 'stickers/qtStickers/qtSticker3', pack: 'Blissful'},
+	{path: 'stickers/qtStickers/cloudSticker', pack: 'Blissful'},
+	{path: 'stickers/qtStickers/starSticker', pack: 'Blissful'},
+	{path: 'stickers/qtStickers/flowerSticker1', pack: 'Blissful'},
+	{path: 'stickers/qtStickers/flowerSticker2', pack: 'Blissful'},
+	{path: 'stickers/qtStickers/crayonSticker', pack: 'Blissful'},
+	{path: 'stickers/qtStickers/skullSticker', pack: 'Blissful'},
+	{path: 'stickers/qtstickerspico/qtSticker1', pack: 'Blissful Pico'},
+	{path: 'stickers/qtstickerspico/qtSticker2', pack: 'Blissful Pico'},
+	{path: 'stickers/qtstickerspico/qtSticker3', pack: 'Blissful Pico'},
+	{path: 'stickers/qtstickerspico/skullSticker1', pack: 'Blissful Pico'},
+	{path: 'stickers/qtstickerspico/posterSticker', pack: 'Blissful Pico'},
+	{path: 'stickers/qtstickerspico/lollipopSticker', pack: 'Blissful Pico'},
+	{path: 'stickers/qtstickerspico/drinkSticker', pack: 'Blissful Pico'},
+	{path: 'stickers/qtstickerspico/appleSticker', pack: 'Blissful Pico'},
+	{path: 'stickers/kbstickers/qtKbSticker', pack: 'Obliterated'},
+	{path: 'stickers/kbstickers/kbSticker1', pack: 'Obliterated'},
+	{path: 'stickers/kbstickers/kbSticker2', pack: 'Obliterated'},
+	{path: 'stickers/kbstickers/kbSticker3', pack: 'Obliterated'},
+	{path: 'stickers/kbstickers/dangerSticker', pack: 'Obliterated'},
+	{path: 'stickers/kbstickers/nutSticker', pack: 'Obliterated'},
+	{path: 'stickers/kbstickers/sawSticker', pack: 'Obliterated'},
+	{path: 'stickers/kbstickers/tvSticker', pack: 'Obliterated'}
+];
+var stickerSprite:FlxSprite;
+var stickerLabel:FlxText;
+var stickerHint:FlxText;
+var stickerIndex:Int = 0;
+
 function onCreate()
 {
 	// No camZoomState/SetCameraBop system here unlike every other stage in
@@ -96,6 +134,7 @@ function onCreatePost()
 	buildTitleScreen();
 	buildMainMenu();
 	buildFreeplay();
+	buildStickers();
 
 	showOnly('title');
 }
@@ -140,7 +179,7 @@ function updateTitle(elapsed:Float)
 // --- Main menu ---
 function buildMainMenu()
 {
-	var items:Array<String> = ['FREEPLAY', 'EXIT'];
+	var items:Array<String> = ['FREEPLAY', 'STICKERS', 'EXIT'];
 	for (i in 0...items.length)
 	{
 		var txt:FlxText = new FlxText(0, FlxG.height * 0.4 + i * 70, FlxG.width, items[i], 40);
@@ -182,6 +221,8 @@ function updateMainMenu()
 		FlxG.sound.play(Paths.sound('confirmMenu'));
 		if (mainMenuIndex == 0)
 			showOnly('freeplay');
+		else if (mainMenuIndex == 1)
+			showOnly('stickers');
 		else
 			exitToRealFreeplay();
 	}
@@ -281,6 +322,58 @@ function updateFreeplay()
 	}
 }
 
+// --- Sticker pack gallery ---
+function buildStickers()
+{
+	stickerSprite = new FlxSprite(0, 0);
+	stickerSprite.scrollFactor.set();
+	game.add(stickerSprite);
+
+	stickerLabel = new FlxText(0, FlxG.height * 0.78, FlxG.width, '', 28);
+	stickerLabel.setFormat(Paths.font('vcr.ttf'), 28, 0xFFFF69B4, 'center', FlxTextBorderStyle.OUTLINE, 0xFF000000);
+	stickerLabel.scrollFactor.set();
+	game.add(stickerLabel);
+
+	stickerHint = new FlxText(0, FlxG.height * 0.85, FlxG.width, '< / > to browse, BACK to return', 20);
+	stickerHint.setFormat(Paths.font('vcr.ttf'), 20, 0xFFFFFFFF, 'center', FlxTextBorderStyle.OUTLINE, 0xFF000000);
+	stickerHint.scrollFactor.set();
+	game.add(stickerHint);
+
+	updateStickerDisplay();
+}
+
+function updateStickerDisplay()
+{
+	var entry:Dynamic = stickerEntries[stickerIndex];
+	stickerSprite.loadGraphic(Paths.image(entry.path));
+	stickerSprite.setGraphicSize(0, 320);
+	stickerSprite.updateHitbox();
+	stickerSprite.screenCenter();
+	stickerSprite.y = FlxG.height * 0.32;
+	stickerLabel.text = entry.pack + '  (' + (stickerIndex + 1) + '/' + stickerEntries.length + ')';
+}
+
+function updateStickers()
+{
+	if (keyJustPressed('ui_left'))
+	{
+		stickerIndex = (stickerIndex - 1 + stickerEntries.length) % stickerEntries.length;
+		FlxG.sound.play(Paths.sound('scrollMenu'));
+		updateStickerDisplay();
+	}
+	else if (keyJustPressed('ui_right'))
+	{
+		stickerIndex = (stickerIndex + 1) % stickerEntries.length;
+		FlxG.sound.play(Paths.sound('scrollMenu'));
+		updateStickerDisplay();
+	}
+	else if (keyJustPressed('back'))
+	{
+		FlxG.sound.play(Paths.sound('cancelMenu'));
+		showOnly('mainmenu');
+	}
+}
+
 // Switches visibility so only the current screen's sprites are shown -
 // everything for all 3 screens is built once in onCreatePost instead of
 // created/destroyed per transition, simpler and safer to reason about.
@@ -298,6 +391,11 @@ function showOnly(state:String)
 	for (i in songIcons) i.visible = onFreeplay;
 	songCursor.visible = onFreeplay;
 	diffText.visible = onFreeplay;
+
+	var onStickers:Bool = (state == 'stickers');
+	stickerSprite.visible = onStickers;
+	stickerLabel.visible = onStickers;
+	stickerHint.visible = onStickers;
 }
 
 function onUpdate(elapsed:Float)
@@ -310,6 +408,8 @@ function onUpdate(elapsed:Float)
 			updateMainMenu();
 		case 'freeplay':
 			updateFreeplay();
+		case 'stickers':
+			updateStickers();
 	}
 }
 

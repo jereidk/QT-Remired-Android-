@@ -356,9 +356,20 @@ notas vacías, instrumental reciclado de `introSong-default.ogg`,
 `stage: qtStageMenu`) cuyo único propósito es ser secuestrada por
 `stages/qtStageMenu.hx` para mostrar un menú completo construido a mano en
 HScript: pantalla de título → menú principal → selector de canción con
-ícono/dificultad — imitando el flujo de menús del mod original, en vez de
-usar las pantallas reales de Psych (que, se confirmó leyendo el código
-fuente, no tienen NINGÚN gancho de HScript — ver más abajo).
+ícono/dificultad, **más una galería de sticker packs** → imitando el flujo
+de menús del mod original, en vez de usar las pantallas reales de Psych
+(que, se confirmó leyendo el código fuente, no tienen NINGÚN gancho de
+HScript — ver más abajo).
+
+**Bonus que esto habilitó**: los sticker packs del original
+(`data/stickerpacks/*.json`, antes documentados como "sin equivalente en
+Psych" en la limitación 15) SÍ se pudieron portar como una galería
+navegable (`images/stickers/{qtStickers,qtstickerspico,kbstickers}/*.png`,
+25 stickers reales copiados del paquete original, antes sin usar) — no como
+un sistema de coleccionables real (eso seguiría necesitando algo que Psych
+no tiene), pero sí como contenido browseable dentro de este mismo menú
+custom, ya que ahora esa pantalla es enteramente nuestra. Opción
+"STICKERS" en el menú principal, `</` `>` para recorrer, BACK para volver.
 
 **Por qué esto es fundamentalmente distinto a todo lo demás en este port**:
 todo lo anterior fue código aditivo dentro de canciones reales, verificado
@@ -721,9 +732,13 @@ y decidió proceder de todas formas.
       riesgo real para un beneficio casi nulo, dado que no hay ningún arte
       que se esté perdiendo. Se descartó por esa relación costo/beneficio,
       no por imposibilidad técnica.
-    - **Sticker packs** (`data/stickerpacks/*.json`) — sistema de
-      "coleccionables" exclusivo del motor moderno, Psych 0.7.3 no tiene
-      nada parecido.
+    - **Sticker packs** (`data/stickerpacks/*.json`) — el sistema de
+      "coleccionables" en sí sigue sin equivalente en Psych 0.7.3. **Pero
+      una vez que el menú custom "QT-Rewired" existió** (ver esa sección más
+      arriba), las imágenes reales SÍ se pudieron portar como una galería
+      navegable dentro de ese mismo menú — ya no es "sin equivalente en
+      absoluto", es "sin sistema de coleccionables real, pero el contenido
+      visual sí se puede mostrar".
     - **Álbum roll y iconos pixel-art propios de Freeplay**
       (`data/ui/freeplay/albums/*.json`, `images/freeplay/icons/*pixel*`) —
       Freeplay en Psych ya muestra los healthicons ya portados de cada
